@@ -1,9 +1,11 @@
 import { toPng } from "html-to-image";
 
-function isMobileDevice(): boolean {
+export function isMobileDevice(): boolean {
   if (typeof navigator === "undefined") return false;
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
+
+const PRINT_LANDSCAPE_WIDTH_PX = 1123;
 
 function dataUrlToBlob(dataUrl: string): Blob {
   const [header, base64] = dataUrl.split(",");
@@ -75,4 +77,36 @@ export async function exportElementAsImage(
 ): Promise<void> {
   const blob = await renderToBlob(element, options);
   await saveBlob(blob, filename);
+}
+
+async function waitForNextPaint(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
+}
+
+export async function exportPrintLayoutAsLandscapeImage(
+  element: HTMLElement,
+  filename: string,
+  options: ExportImageOptions = {}
+): Promise<void> {
+  const overlay = document.createElement("div");
+  overlay.style.cssText =
+    "position:fixed;left:0;top:0;z-index:-1;opacity:0;pointer-events:none;overflow:visible;";
+
+  const clone = element.cloneNode(true) as HTMLElement;
+  clone.classList.remove("hidden", "print-only");
+  clone.classList.add("print-capture-root");
+  clone.style.cssText = `display:block;visibility:visible;width:${PRINT_LANDSCAPE_WIDTH_PX}px;background:#fff;`;
+  clone.removeAttribute("aria-hidden");
+  overlay.appendChild(clone);
+  document.body.appendChild(overlay);
+
+  try {
+    await waitForNextPaint();
+    const blob = await renderToBlob(clone, { pixelRatio: options.pixelRatio ?? 2 });
+    await saveBlob(blob, filename);
+  } finally {
+    document.body.removeChild(overlay);
+  }
 }

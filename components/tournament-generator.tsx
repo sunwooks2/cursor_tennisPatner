@@ -8,7 +8,11 @@ import {
   matchToText,
   validateInput,
 } from "@/lib/schedule";
-import { exportElementAsImage } from "@/lib/export-image";
+import {
+  exportElementAsImage,
+  exportPrintLayoutAsLandscapeImage,
+  isMobileDevice,
+} from "@/lib/export-image";
 import { PlayerStatsBars } from "@/components/player-stats-bars";
 import { PlayerStatsPrint } from "@/components/player-stats-print";
 import { ScheduleMatchView } from "@/components/schedule-match-view";
@@ -84,7 +88,9 @@ export function TournamentGenerator() {
   const [courtFilter, setCourtFilter] = useState<CourtFilter>("ALL");
   const [initialized, setInitialized] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isPrintExporting, setIsPrintExporting] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
+  const printExportRef = useRef<HTMLDivElement>(null);
 
   const runGenerate = useCallback((nextInput: ScheduleInput, nextSeed: number) => {
     const error = validateInput(nextInput);
@@ -202,11 +208,27 @@ export function TournamentGenerator() {
     }
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
     if (!generated) {
       alert("먼저 대진을 생성해주세요.");
       return;
     }
+
+    if (isMobileDevice()) {
+      if (!printExportRef.current) return;
+
+      setIsPrintExporting(true);
+      try {
+        const filename = `tennis-schedule-print-${input.startTime.replace(":", "")}.png`;
+        await exportPrintLayoutAsLandscapeImage(printExportRef.current, filename, { pixelRatio: 2 });
+      } catch {
+        alert("인쇄용 이미지 저장에 실패했습니다.");
+      } finally {
+        setIsPrintExporting(false);
+      }
+      return;
+    }
+
     window.print();
   };
 
@@ -410,7 +432,7 @@ export function TournamentGenerator() {
             <button
               type="button"
               onClick={handleImageDownload}
-              disabled={isExporting}
+              disabled={isExporting || isPrintExporting}
               className="rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap disabled:opacity-60"
             >
               {isExporting ? "저장 중" : "저장"}
@@ -418,9 +440,10 @@ export function TournamentGenerator() {
             <button
               type="button"
               onClick={handlePrint}
-              className="rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap"
+              disabled={isExporting || isPrintExporting}
+              className="rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap disabled:opacity-60"
             >
-              인쇄
+              {isPrintExporting ? "인쇄 중" : "인쇄"}
             </button>
           </div>
         </form>
@@ -520,7 +543,7 @@ export function TournamentGenerator() {
       )}
 
       {generated && (
-        <div className="print-only hidden" aria-hidden>
+        <div ref={printExportRef} className="print-only hidden" aria-hidden>
           <div className="print-content">
             <header className="print-header">
               <h1 className="print-title">테니스 대진표</h1>
