@@ -1,7 +1,10 @@
-import type { MatchType, PlayerStat } from "@/lib/types";
+import { buildRelationCounts, getOpposingTeamPlayers, getSameTeamPlayers } from "@/lib/team-stats";
+import type { MatchType, PlayerStat, ScheduleMode, TeamScheduleInfo } from "@/lib/types";
 
 interface PlayerStatsBarsProps {
   stats: PlayerStat[];
+  mode?: ScheduleMode;
+  teamInfo?: TeamScheduleInfo;
 }
 
 function TypeCountLabel({ typeCounts }: { typeCounts: Record<MatchType, number> }) {
@@ -31,6 +34,8 @@ function CountBars({
   entries: [string, number][];
   maxCount: number;
 }) {
+  if (!entries.length) return null;
+
   return (
     <div>
       <p className="mb-2 text-xs font-semibold text-[var(--muted)]">{title}</p>
@@ -65,29 +70,39 @@ function CountBars({
   );
 }
 
-export function PlayerStatsBars({ stats }: PlayerStatsBarsProps) {
+function maxEntryCount(entriesList: [string, number][][]): number {
+  const values = entriesList.flat().map(([, count]) => count);
+  return Math.max(...values, 1);
+}
+
+export function PlayerStatsBars({ stats, mode = "free", teamInfo }: PlayerStatsBarsProps) {
   if (!stats.length) {
     return <p className="text-sm text-[var(--muted)]">참가자가 없습니다.</p>;
   }
 
+  const isTeamMode = mode === "team" && teamInfo;
   const allPlayers = stats.map((s) => s.player);
-  const sortedStats = stats;
   const maxTotal = Math.max(...stats.map((s) => s.totalMatches), 1);
-  const maxPartner = Math.max(
-    ...stats.flatMap((s) => buildFullCounts(s.player, allPlayers, s.partners).map(([, c]) => c)),
-    1
+
+  const partnerEntriesList = stats.map((stat) =>
+    isTeamMode
+      ? buildRelationCounts(stat.player, getSameTeamPlayers(stat.player, teamInfo), stat.partners)
+      : buildFullCounts(stat.player, allPlayers, stat.partners)
   );
-  const maxOpponent = Math.max(
-    ...stats.flatMap((s) => buildFullCounts(s.player, allPlayers, s.opponents).map(([, c]) => c)),
-    1
+  const opponentEntriesList = stats.map((stat) =>
+    isTeamMode
+      ? buildRelationCounts(stat.player, getOpposingTeamPlayers(stat.player, teamInfo), stat.opponents)
+      : buildFullCounts(stat.player, allPlayers, stat.opponents)
   );
+  const maxPartner = maxEntryCount(partnerEntriesList);
+  const maxOpponent = maxEntryCount(opponentEntriesList);
 
   return (
     <div className="space-y-4">
       <div>
         <p className="mb-2 text-xs font-semibold text-[var(--muted)]">총 경기수</p>
         <div className="space-y-2">
-          {sortedStats.map((stat) => {
+          {stats.map((stat) => {
             const width =
               stat.totalMatches > 0
                 ? Math.max((stat.totalMatches / maxTotal) * 100, 8)
@@ -119,7 +134,7 @@ export function PlayerStatsBars({ stats }: PlayerStatsBarsProps) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {sortedStats.map((stat) => (
+        {stats.map((stat, index) => (
           <article
             key={stat.player}
             className="rounded-lg border border-[var(--line)] bg-white p-3"
@@ -130,13 +145,13 @@ export function PlayerStatsBars({ stats }: PlayerStatsBarsProps) {
             </h3>
             <div className="space-y-4">
               <CountBars
-                title="페어 상대"
-                entries={buildFullCounts(stat.player, allPlayers, stat.partners)}
+                title={isTeamMode ? "페어" : "페어 상대"}
+                entries={partnerEntriesList[index]}
                 maxCount={maxPartner}
               />
               <CountBars
-                title="상대 팀원"
-                entries={buildFullCounts(stat.player, allPlayers, stat.opponents)}
+                title={isTeamMode ? "상대" : "상대 팀원"}
+                entries={opponentEntriesList[index]}
                 maxCount={maxOpponent}
               />
             </div>

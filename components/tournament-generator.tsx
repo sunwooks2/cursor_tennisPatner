@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import {
   generateSchedule,
   isCurrentSlot,
-  matchToText,
+  formatMatchText,
   validateInput,
 } from "@/lib/schedule";
 import {
@@ -18,22 +18,17 @@ import { NumberStepper } from "@/components/number-stepper";
 import { PlayerStatsBars } from "@/components/player-stats-bars";
 import { PlayerStatsPrint } from "@/components/player-stats-print";
 import { ScheduleMatchView } from "@/components/schedule-match-view";
+import { TeamRosterForm } from "@/components/team-roster-form";
+import {
+  DEFAULT_INPUT,
+  formatTeamSummary,
+  parseInputFromSearchParams,
+  resizeNames,
+} from "@/lib/parse-schedule-input";
 import { buildScheduleShareUrl, shareScheduleLink } from "@/lib/share-link";
 import { getFilterChipClass } from "@/lib/match-theme";
 import { trackEvent } from "@/lib/track-event";
-import type { CourtFilter, GeneratedSchedule, MatchType, ScheduleInput } from "@/lib/types";
-
-const DEFAULT_INPUT: ScheduleInput = {
-  maleCount: 0,
-  femaleCount: 0,
-  maleNames: [],
-  femaleNames: [],
-  courtCount: 1,
-  startTime: "09:00",
-  endTime: "11:00",
-  matchMinutes: 30,
-  types: ["WD"],
-};
+import type { CourtFilter, GeneratedSchedule, MatchType, ScheduleInput, ScheduleMode } from "@/lib/types";
 
 function addHoursToTime(time: string, hours: number): string {
   const [h, m] = time.split(":").map(Number);
@@ -49,40 +44,10 @@ const TYPE_OPTIONS: { value: MatchType; label: string }[] = [
   { value: "MXD", label: "혼합복식 (MXD)" },
 ];
 
-function resizeNames(names: string[], count: number): string[] {
-  if (count <= names.length) return names.slice(0, count);
-  return [...names, ...Array.from({ length: count - names.length }, () => "")];
-}
-
-function parseInputFromSearchParams(params: URLSearchParams): { input: ScheduleInput; seed: number } {
-  const input: ScheduleInput = { ...DEFAULT_INPUT };
-  const m = params.get("m");
-  const f = params.get("f");
-  const c = params.get("c");
-  const s = params.get("s");
-  const e = params.get("e");
-  const d = params.get("d");
-  const t = params.get("t");
-  const seedParam = params.get("seed");
-
-  if (m) input.maleCount = Number(m);
-  if (f) input.femaleCount = Number(f);
-  if (c) input.courtCount = Number(c);
-  if (s) input.startTime = s;
-  if (e) input.endTime = e;
-  if (d) input.matchMinutes = Number(d);
-  if (t) input.types = t.split(",").filter(Boolean) as MatchType[];
-
-  const mn = params.get("mn");
-  const fn = params.get("fn");
-  if (mn) input.maleNames = mn.split("|");
-  if (fn) input.femaleNames = fn.split("|");
-  input.maleNames = resizeNames(input.maleNames, input.maleCount);
-  input.femaleNames = resizeNames(input.femaleNames, input.femaleCount);
-
-  const seed = seedParam ? Number(seedParam) : Date.now();
-  return { input, seed };
-}
+const MODE_OPTIONS: { value: ScheduleMode; label: string }[] = [
+  { value: "free", label: "기본" },
+  { value: "team", label: "팀전" },
+];
 
 export function TournamentGenerator() {
   const searchParams = useSearchParams();
@@ -120,8 +85,10 @@ export function TournamentGenerator() {
   }, [initialized, runGenerate, searchParams]);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
     trackEvent("page_view", {
-      shared: new URLSearchParams(window.location.search).has("seed"),
+      shared: params.has("seed"),
+      mode: params.get("mode") === "team" ? "team" : "free",
     });
   }, []);
 
@@ -164,9 +131,18 @@ export function TournamentGenerator() {
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     trackEvent("대진 생성", {
-      maleCount: input.maleCount,
-      femaleCount: input.femaleCount,
+      mode: input.mode,
       courtCount: input.courtCount,
+      ...(input.mode === "free"
+        ? { maleCount: input.maleCount, femaleCount: input.femaleCount }
+        : {
+            teamA: input.teamA.name,
+            teamB: input.teamB.name,
+            teamAMales: input.teamA.maleCount,
+            teamAFemales: input.teamA.femaleCount,
+            teamBMales: input.teamB.maleCount,
+            teamBFemales: input.teamB.femaleCount,
+          }),
     });
     runGenerate(input, Date.now());
   };
@@ -229,7 +205,7 @@ export function TournamentGenerator() {
     setIsExcelExporting(true);
     trackEvent("엑셀저장");
     try {
-      const { downloadPrintLayoutExcel } = await import("@/lib/export-excel");
+      const { downloadPrintLayoutExcel } = await import("@/lib/download-excel");
       const filename = `tennis-schedule-${input.startTime.replace(":", "")}.xlsx`;
       await downloadPrintLayoutExcel(input, generated, slotMap, filename);
     } catch {
@@ -313,6 +289,27 @@ export function TournamentGenerator() {
     });
   };
 
+  const handleModeChange = (mode: ScheduleMode) => {
+    setInput((prev) => ({ ...prev, mode }));
+    setGenerated(null);
+  };
+
+  const matchCount = generated?.schedule.filter((m) => !m.empty).length ?? 0;
+  const teamSummary =
+    generated?.mode === "team" && generated.teamInfo
+      ? formatTeamSummary(
+          generated.teamInfo.teamAName,
+          generated.teamInfo.teamBName,
+          input.teamA.maleCount,
+          input.teamA.femaleCount,
+          input.teamB.maleCount,
+          input.teamB.femaleCount,
+          matchCount,
+          generated.teamInfo.teamATotalMatches,
+          generated.teamInfo.teamBTotalMatches
+        )
+      : null;
+
   return (
     <main className="mx-auto w-full max-w-[1120px] p-4">
       <header className="no-print mb-3">
@@ -324,26 +321,61 @@ export function TournamentGenerator() {
 
       <section className="no-print mb-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
         <h2 className="mb-3 text-[1.1rem] font-semibold">대진 생성 조건</h2>
+        <div className="mb-3 flex gap-1.5">
+          {MODE_OPTIONS.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => handleModeChange(value)}
+              className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
+                input.mode === value
+                  ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]"
+                  : "border-[var(--line)] bg-white"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-3">
-          <NumberStepper
-            label="남성 인원수"
-            value={input.maleCount}
-            min={0}
-            onChange={handleMaleCountChange}
-          />
-          <NumberStepper
-            label="여성 인원수"
-            value={input.femaleCount}
-            min={0}
-            onChange={handleFemaleCountChange}
-          />
+          {input.mode === "free" ? (
+            <>
+              <NumberStepper
+                label="남성 인원수"
+                value={input.maleCount}
+                min={0}
+                onChange={handleMaleCountChange}
+              />
+              <NumberStepper
+                label="여성 인원수"
+                value={input.femaleCount}
+                min={0}
+                onChange={handleFemaleCountChange}
+              />
+            </>
+          ) : (
+            <div className="col-span-full space-y-3">
+              <TeamRosterForm
+                roster={input.teamA}
+                onChange={(teamA) => setInput((prev) => ({ ...prev, teamA }))}
+              />
+              <TeamRosterForm
+                roster={input.teamB}
+                onChange={(teamB) => setInput((prev) => ({ ...prev, teamB }))}
+              />
+              <p className="text-sm text-[var(--muted)]">
+                팀 인원이 다르면 인원이 적은 팀 선수에게 경기가 더 많이 배정될 수 있습니다. 가능한 범위에서
+                개인별 경기 수를 균등하게 맞춥니다.
+              </p>
+            </div>
+          )}
           <NumberStepper
             label="코트 수"
             value={input.courtCount}
             min={1}
             onChange={(courtCount) => setInput((prev) => ({ ...prev, courtCount }))}
           />
-          {input.maleCount > 0 && (
+          {input.mode === "free" && input.maleCount > 0 && (
             <div className="col-span-full rounded-lg border border-[var(--line)] bg-[#f8fafc] px-3 py-2.5">
               <p className="mb-2 text-sm font-medium">남성 이름 (미입력 시 남1, 남2...)</p>
               <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
@@ -362,7 +394,7 @@ export function TournamentGenerator() {
               </div>
             </div>
           )}
-          {input.femaleCount > 0 && (
+          {input.mode === "free" && input.femaleCount > 0 && (
             <div className="col-span-full rounded-lg border border-[var(--line)] bg-[#f8fafc] px-3 py-2.5">
               <p className="mb-2 text-sm font-medium">여성 이름 (미입력 시 여1, 여2...)</p>
               <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
@@ -481,7 +513,10 @@ export function TournamentGenerator() {
       {generated && (
         <div ref={exportRef} className="screen-only">
           <section className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
-            <h2 className="mb-3 text-[1.1rem] font-semibold">생성된 대진표</h2>
+            <h2 className="mb-1 text-[1.1rem] font-semibold">생성된 대진표</h2>
+            {teamSummary && (
+              <p className="mb-3 text-sm font-medium text-[var(--text)]">{teamSummary}</p>
+            )}
             <div className="export-exclude mb-3 flex flex-wrap gap-1.5">
               {courtFilterOptions.map(({ value, label }) => (
                 <button
@@ -503,7 +538,10 @@ export function TournamentGenerator() {
                       시간
                     </th>
                     {visibleCourts.map((court) => (
-                      <th key={court} className="min-w-[160px] p-2 text-left text-sm font-semibold text-[var(--muted)]">
+                      <th
+                        key={court}
+                        className="min-w-[160px] p-2 text-left text-sm font-semibold text-[var(--muted)]"
+                      >
                         코트{court}
                       </th>
                     ))}
@@ -519,7 +557,7 @@ export function TournamentGenerator() {
                           const match = list.find((x) => x.court === court);
                           return (
                             <td key={court} className="p-2 align-middle">
-                              <ScheduleMatchView match={match} />
+                              <ScheduleMatchView match={match} teamInfo={generated.teamInfo} />
                             </td>
                           );
                         })}
@@ -552,7 +590,7 @@ export function TournamentGenerator() {
                           <span className="text-[var(--muted)]"> · 코트{item.court} · </span>
                         )}
                         {courtFilter !== "ALL" && <span className="text-[var(--muted)]"> · </span>}
-                        <ScheduleMatchView match={item} inline />
+                        <ScheduleMatchView match={item} inline teamInfo={generated.teamInfo} />
                       </p>
                     )}
                   </article>
@@ -566,7 +604,11 @@ export function TournamentGenerator() {
             <p className="mb-3 text-sm text-[var(--muted)]">
               각 참가자의 총 경기수, 페어 횟수, 상대 만남 횟수를 막대 그래프로 표시합니다.
             </p>
-            <PlayerStatsBars stats={generated.playerStats} />
+            <PlayerStatsBars
+              stats={generated.playerStats}
+              mode={generated.mode}
+              teamInfo={generated.teamInfo}
+            />
           </section>
         </div>
       )}
@@ -575,24 +617,64 @@ export function TournamentGenerator() {
         <div ref={printExportRef} className="print-only hidden" aria-hidden>
           <div className="print-content">
             <header className="print-header">
-              <h1 className="print-title">테니스 대진표</h1>
+              <h1 className="print-title">
+                {generated.mode === "team" ? "테니스 팀전 대진표" : "테니스 대진표"}
+              </h1>
               <p className="print-meta">
-                {input.startTime} ~ {input.endTime} · 코트 {input.courtCount} · 경기 {input.matchMinutes}분 · 남{" "}
-                {input.maleCount} / 여 {input.femaleCount}
+                {input.startTime} ~ {input.endTime} · 코트 {input.courtCount} · 경기 {input.matchMinutes}분
               </p>
+              {teamSummary ? (
+                <p className="print-meta">{teamSummary}</p>
+              ) : (
+                <p className="print-meta">
+                  남 {input.maleCount} / 여 {input.femaleCount}
+                </p>
+              )}
               <p className="print-participants">
-                {generated.males.length > 0 && (
-                  <span>
-                    <strong>남</strong> {generated.males.join(", ")}
-                  </span>
-                )}
-                {generated.males.length > 0 && generated.females.length > 0 && (
-                  <span className="print-participants-sep"> · </span>
-                )}
-                {generated.females.length > 0 && (
-                  <span>
-                    <strong>여</strong> {generated.females.join(", ")}
-                  </span>
+                {generated.mode === "team" && generated.teamInfo ? (
+                  <>
+                    <span>
+                      <strong>{generated.teamInfo.teamAName}</strong>{" "}
+                      {generated.teamInfo.teamAMales.length > 0 && (
+                        <>남 {generated.teamInfo.teamAMales.join(", ")}</>
+                      )}
+                      {generated.teamInfo.teamAMales.length > 0 &&
+                        generated.teamInfo.teamAFemales.length > 0 &&
+                        " · "}
+                      {generated.teamInfo.teamAFemales.length > 0 && (
+                        <>여 {generated.teamInfo.teamAFemales.join(", ")}</>
+                      )}
+                    </span>
+                    <span className="print-participants-sep"> / </span>
+                    <span>
+                      <strong>{generated.teamInfo.teamBName}</strong>{" "}
+                      {generated.teamInfo.teamBMales.length > 0 && (
+                        <>남 {generated.teamInfo.teamBMales.join(", ")}</>
+                      )}
+                      {generated.teamInfo.teamBMales.length > 0 &&
+                        generated.teamInfo.teamBFemales.length > 0 &&
+                        " · "}
+                      {generated.teamInfo.teamBFemales.length > 0 && (
+                        <>여 {generated.teamInfo.teamBFemales.join(", ")}</>
+                      )}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    {generated.males.length > 0 && (
+                      <span>
+                        <strong>남</strong> {generated.males.join(", ")}
+                      </span>
+                    )}
+                    {generated.males.length > 0 && generated.females.length > 0 && (
+                      <span className="print-participants-sep"> · </span>
+                    )}
+                    {generated.females.length > 0 && (
+                      <span>
+                        <strong>여</strong> {generated.females.join(", ")}
+                      </span>
+                    )}
+                  </>
                 )}
               </p>
             </header>
@@ -617,7 +699,7 @@ export function TournamentGenerator() {
                         const match = list.find((x) => x.court === court);
                         return (
                           <td key={court}>
-                            {match && !match.empty ? matchToText(match) : "-"}
+                            {match && !match.empty ? formatMatchText(match, generated.teamInfo) : "-"}
                           </td>
                         );
                       })}
@@ -629,7 +711,11 @@ export function TournamentGenerator() {
 
             <section className="print-block">
               <h2 className="print-heading">참가자별 페어/상대 통계</h2>
-              <PlayerStatsPrint stats={generated.playerStats} />
+              <PlayerStatsPrint
+                stats={generated.playerStats}
+                mode={generated.mode}
+                teamInfo={generated.teamInfo}
+              />
             </section>
           </div>
         </div>

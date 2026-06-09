@@ -1,7 +1,6 @@
-"use client";
-
 import ExcelJS from "exceljs";
-import { matchToText } from "@/lib/schedule";
+import { formatTeamSummary } from "@/lib/parse-schedule-input";
+import { formatMatchText } from "@/lib/schedule";
 import type { GeneratedSchedule, MatchType, PlayerStat, ScheduleInput, ScheduleMatch } from "@/lib/types";
 
 const TYPE_LABELS: { key: MatchType; label: string }[] = [
@@ -241,14 +240,16 @@ function buildMatchCountRows(stats: PlayerStat[]): CellValue[][] {
 }
 
 function autoFitColumns(worksheet: ExcelJS.Worksheet): void {
-  worksheet.columns.forEach((column) => {
+  const columnCount = worksheet.columnCount || worksheet.actualColumnCount || 1;
+  for (let col = 1; col <= columnCount; col += 1) {
+    const column = worksheet.getColumn(col);
     let maxLength = 8;
-    column.eachCell?.({ includeEmpty: false }, (cell) => {
+    column.eachCell({ includeEmpty: false }, (cell) => {
       const text = String(cell.value ?? "");
       maxLength = Math.max(maxLength, Math.min(text.length + 2, 52));
     });
     column.width = maxLength;
-  });
+  }
 }
 
 async function buildWorkbook(
@@ -263,15 +264,48 @@ async function buildWorkbook(
   const writer = new SheetWriter(worksheet);
   const courtCount = input.courtCount;
 
-  writer.writeTitle("테니스 대진표");
+  writer.writeTitle(generated.mode === "team" ? "테니스 팀전 대진표" : "테니스 대진표");
   writer.writeMeta(
-    `${input.startTime} ~ ${input.endTime} · 코트 ${input.courtCount} · 경기 ${input.matchMinutes}분 · 남 ${input.maleCount} / 여 ${input.femaleCount}`
+    `${input.startTime} ~ ${input.endTime} · 코트 ${input.courtCount} · 경기 ${input.matchMinutes}분`
   );
 
-  const participantParts: string[] = [];
-  if (generated.males.length > 0) participantParts.push(`남 ${generated.males.join(", ")}`);
-  if (generated.females.length > 0) participantParts.push(`여 ${generated.females.join(", ")}`);
-  if (participantParts.length > 0) writer.writeMeta(participantParts.join(" · "));
+  if (generated.mode === "team" && generated.teamInfo) {
+    const matchCount = generated.schedule.filter((m) => !m.empty).length;
+    writer.writeMeta(
+      formatTeamSummary(
+        generated.teamInfo.teamAName,
+        generated.teamInfo.teamBName,
+        input.teamA.maleCount,
+        input.teamA.femaleCount,
+        input.teamB.maleCount,
+        input.teamB.femaleCount,
+        matchCount,
+        generated.teamInfo.teamATotalMatches,
+        generated.teamInfo.teamBTotalMatches
+      )
+    );
+    const { teamAName, teamBName, teamAMales, teamAFemales, teamBMales, teamBFemales } = generated.teamInfo;
+    const rosterParts: string[] = [];
+    if (teamAMales.length > 0 || teamAFemales.length > 0) {
+      const aParts: string[] = [];
+      if (teamAMales.length > 0) aParts.push(`남 ${teamAMales.join(", ")}`);
+      if (teamAFemales.length > 0) aParts.push(`여 ${teamAFemales.join(", ")}`);
+      rosterParts.push(`${teamAName}: ${aParts.join(" · ")}`);
+    }
+    if (teamBMales.length > 0 || teamBFemales.length > 0) {
+      const bParts: string[] = [];
+      if (teamBMales.length > 0) bParts.push(`남 ${teamBMales.join(", ")}`);
+      if (teamBFemales.length > 0) bParts.push(`여 ${teamBFemales.join(", ")}`);
+      rosterParts.push(`${teamBName}: ${bParts.join(" · ")}`);
+    }
+    if (rosterParts.length > 0) writer.writeMeta(rosterParts.join(" / "));
+  } else {
+    writer.writeMeta(`남 ${input.maleCount} / 여 ${input.femaleCount}`);
+    const participantParts: string[] = [];
+    if (generated.males.length > 0) participantParts.push(`남 ${generated.males.join(", ")}`);
+    if (generated.females.length > 0) participantParts.push(`여 ${generated.females.join(", ")}`);
+    if (participantParts.length > 0) writer.writeMeta(participantParts.join(" · "));
+  }
 
   writer.writeBlank();
   writer.writeSectionTitle("대진표");
@@ -282,7 +316,7 @@ async function buildWorkbook(
       const row: CellValue[] = [time];
       for (let court = 1; court <= courtCount; court += 1) {
         const match = list.find((x) => x.court === court);
-        row.push(match && !match.empty ? matchToText(match) : "-");
+        row.push(match && !match.empty ? formatMatchText(match, generated.teamInfo) : "-");
       }
       return row;
     }),
@@ -316,45 +350,91 @@ async function buildWorkbook(
 
   writer.writeBlank();
 
-  const matrixStartRow = writer.currentRow;
   const allPlayers = stats.map((s) => s.player);
-  const partnerWidth = writer.writeMatrixBlock(
-    "페어 횟수",
-    stats,
-    allPlayers,
-    (stat, name) => stat.partners[name] ?? 0,
-    1
-  );
-  const matrixEndRow = writer.currentRow;
-  writer.currentRow = matrixStartRow;
-  writer.writeMatrixBlock(
-    "상대 횟수",
-    stats,
-    allPlayers,
-    (stat, name) => stat.opponents[name] ?? 0,
-    partnerWidth + 2
-  );
-  writer.currentRow = Math.max(matrixEndRow, writer.currentRow);
+
+  if (generated.mode === "team" && generated.teamInfo) {
+    const { teamAName, teamBName, teamAMales, teamAFemales, teamBMales, teamBFemales } =
+      generated.teamInfo;
+    const teamAPlayers = [...teamAMales, ...teamAFemales];
+    const teamBPlayers = [...teamBMales, ...teamBFemales];
+    const teamAStats = stats.filter((s) => teamAPlayers.includes(s.player));
+    const teamBStats = stats.filter((s) => teamBPlayers.includes(s.player));
+
+    let matrixStartRow = writer.currentRow;
+    let partnerWidth = writer.writeMatrixBlock(
+      `페어 횟수 (${teamAName})`,
+      teamAStats,
+      teamAPlayers,
+      (stat, name) => stat.partners[name] ?? 0,
+      1
+    );
+    let matrixEndRow = writer.currentRow;
+    writer.currentRow = matrixStartRow;
+    partnerWidth = Math.max(
+      partnerWidth,
+      writer.writeMatrixBlock(
+        `페어 횟수 (${teamBName})`,
+        teamBStats,
+        teamBPlayers,
+        (stat, name) => stat.partners[name] ?? 0,
+        partnerWidth + 2
+      )
+    );
+    writer.currentRow = Math.max(matrixEndRow, writer.currentRow);
+    writer.writeBlank();
+
+    matrixStartRow = writer.currentRow;
+    let opponentWidth = writer.writeMatrixBlock(
+      `상대 횟수 (${teamAName})`,
+      teamAStats,
+      teamBPlayers,
+      (stat, name) => stat.opponents[name] ?? 0,
+      1
+    );
+    matrixEndRow = writer.currentRow;
+    writer.currentRow = matrixStartRow;
+    opponentWidth = Math.max(
+      opponentWidth,
+      writer.writeMatrixBlock(
+        `상대 횟수 (${teamBName})`,
+        teamBStats,
+        teamAPlayers,
+        (stat, name) => stat.opponents[name] ?? 0,
+        opponentWidth + 2
+      )
+    );
+    writer.currentRow = Math.max(matrixEndRow, writer.currentRow);
+  } else {
+    const matrixStartRow = writer.currentRow;
+    const partnerWidth = writer.writeMatrixBlock(
+      "페어 횟수",
+      stats,
+      allPlayers,
+      (stat, name) => stat.partners[name] ?? 0,
+      1
+    );
+    const matrixEndRow = writer.currentRow;
+    writer.currentRow = matrixStartRow;
+    writer.writeMatrixBlock(
+      "상대 횟수",
+      stats,
+      allPlayers,
+      (stat, name) => stat.opponents[name] ?? 0,
+      partnerWidth + 2
+    );
+    writer.currentRow = Math.max(matrixEndRow, writer.currentRow);
+  }
 
   autoFitColumns(worksheet);
   return workbook;
 }
 
-export async function downloadPrintLayoutExcel(
+export async function buildExcelBuffer(
   input: ScheduleInput,
   generated: GeneratedSchedule,
-  slotMap: Map<string, ScheduleMatch[]>,
-  filename: string
-): Promise<void> {
+  slotMap: Map<string, ScheduleMatch[]>
+): Promise<Uint8Array> {
   const workbook = await buildWorkbook(input, generated, slotMap);
   const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
+  return new Uint8Array(buffer as ArrayBuffer);
 }

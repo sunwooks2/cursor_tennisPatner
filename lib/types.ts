@@ -1,17 +1,41 @@
 export type MatchType = "MD" | "WD" | "MXD";
 
+export type ScheduleMode = "free" | "team";
+
 export type CourtFilter = "ALL" | number;
 
-export interface ScheduleInput {
+export interface TeamRoster {
+  name: string;
   maleCount: number;
   femaleCount: number;
   maleNames: string[];
   femaleNames: string[];
+}
+
+export interface ScheduleInput {
+  mode: ScheduleMode;
+  maleCount: number;
+  femaleCount: number;
+  maleNames: string[];
+  femaleNames: string[];
+  teamA: TeamRoster;
+  teamB: TeamRoster;
   courtCount: number;
   startTime: string;
   endTime: string;
   matchMinutes: number;
   types: MatchType[];
+}
+
+export interface TeamScheduleInfo {
+  teamAName: string;
+  teamBName: string;
+  teamAMales: string[];
+  teamAFemales: string[];
+  teamBMales: string[];
+  teamBFemales: string[];
+  teamATotalMatches: number;
+  teamBTotalMatches: number;
 }
 
 export interface ScheduleMatch {
@@ -24,6 +48,7 @@ export interface ScheduleMatch {
 }
 
 export interface GeneratedSchedule {
+  mode: ScheduleMode;
   slots: string[];
   totalMatches: number;
   schedule: ScheduleMatch[];
@@ -31,6 +56,7 @@ export interface GeneratedSchedule {
   females: string[];
   playStat: { minPlay: number; maxPlay: number };
   playerStats: PlayerStat[];
+  teamInfo?: TeamScheduleInfo;
 }
 
 export interface PlayerStat {

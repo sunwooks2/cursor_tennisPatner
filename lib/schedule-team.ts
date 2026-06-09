@@ -4,13 +4,10 @@ import {
   makeRng,
   makeTimeSlots,
   pairKey,
-  parseTypeLabel,
   shuffledCopy,
-  toMinute,
   type RandFn,
 } from "./schedule-common";
-import { generateTeamSchedule, validateTeamInput } from "./schedule-team";
-import { formatTeamMatchText } from "./team-stats";
+import { getTeamFemalePrefix, getTeamMalePrefix } from "./team-stats";
 import type {
   GeneratedSchedule,
   MatchType,
@@ -35,39 +32,49 @@ interface ScheduleState {
   matchSet: Set<string>;
 }
 
-function makeMatch(
+function pickDistinct(pool: string[], count: number): string[] | null {
+  if (pool.length < count) return null;
+  const picked: string[] = [];
+  for (const name of pool) {
+    if (picked.includes(name)) continue;
+    picked.push(name);
+    if (picked.length === count) return picked;
+  }
+  return null;
+}
+
+function makeTeamMatch(
   type: MatchType,
-  males: string[],
-  females: string[],
+  teamAMales: string[],
+  teamAFemales: string[],
+  teamBMales: string[],
+  teamBFemales: string[],
   state: ScheduleState,
   rand: RandFn
 ): MatchCandidate | null {
-  const needed =
-    type === "MD" ? (["M", "M", "M", "M"] as const) : type === "WD" ? (["F", "F", "F", "F"] as const) : (["M", "M", "F", "F"] as const);
-  const malePool = shuffledCopy(males, rand);
-  const femalePool = shuffledCopy(females, rand);
-  const selectedM: string[] = [];
-  const selectedF: string[] = [];
-
-  for (const token of needed) {
-    const pool = token === "M" ? malePool : femalePool;
-    const target = token === "M" ? selectedM : selectedF;
-    const pick = pool.find(
-      (name) => !target.includes(name) && !selectedM.includes(name) && !selectedF.includes(name)
-    );
-    if (!pick) return null;
-    target.push(pick);
-  }
-
   let teamA: [string, string];
   let teamB: [string, string];
-  if (type === "MXD") {
-    teamA = [selectedM[0], selectedF[0]];
-    teamB = [selectedM[1], selectedF[1]];
+
+  if (type === "MD") {
+    const aMales = pickDistinct(shuffledCopy(teamAMales, rand), 2);
+    const bMales = pickDistinct(shuffledCopy(teamBMales, rand), 2);
+    if (!aMales || !bMales) return null;
+    teamA = [aMales[0], aMales[1]];
+    teamB = [bMales[0], bMales[1]];
+  } else if (type === "WD") {
+    const aFemales = pickDistinct(shuffledCopy(teamAFemales, rand), 2);
+    const bFemales = pickDistinct(shuffledCopy(teamBFemales, rand), 2);
+    if (!aFemales || !bFemales) return null;
+    teamA = [aFemales[0], aFemales[1]];
+    teamB = [bFemales[0], bFemales[1]];
   } else {
-    const all = type === "MD" ? selectedM : selectedF;
-    teamA = [all[0], all[1]];
-    teamB = [all[2], all[3]];
+    const aMales = shuffledCopy(teamAMales, rand);
+    const aFemales = shuffledCopy(teamAFemales, rand);
+    const bMales = shuffledCopy(teamBMales, rand);
+    const bFemales = shuffledCopy(teamBFemales, rand);
+    if (!aMales[0] || !aFemales[0] || !bMales[0] || !bFemales[0]) return null;
+    teamA = [aMales[0], aFemales[0]];
+    teamB = [bMales[0], bFemales[0]];
   }
 
   const players = [...teamA, ...teamB];
@@ -132,21 +139,73 @@ function commitMatch(match: MatchCandidate, state: ScheduleState): void {
   state.matchSet.add(`${match.type}:${p1}#${p2}`);
 }
 
-export function generateFreeSchedule(input: ScheduleInput, seed: number): GeneratedSchedule {
+export function validateTeamInput(input: ScheduleInput): string | null {
+  const { teamA, teamB, courtCount, startTime, endTime, matchMinutes, types } = input;
+  if (!teamA.name.trim() || !teamB.name.trim()) return "팀 이름을 입력해주세요.";
+  if (teamA.name.trim().length > 20 || teamB.name.trim().length > 20) return "팀 이름은 20자 이하여야 합니다.";
+  if (teamA.maleCount < 0 || teamA.femaleCount < 0 || teamB.maleCount < 0 || teamB.femaleCount < 0) {
+    return "인원 수는 0 이상이어야 합니다.";
+  }
+  const totalA = teamA.maleCount + teamA.femaleCount;
+  const totalB = teamB.maleCount + teamB.femaleCount;
+  if (totalA < 1 || totalB < 1) return "각 팀에 최소 1명 이상 필요합니다.";
+  if (courtCount < 1) return "코트 수는 1 이상이어야 합니다.";
+  if (toMinute(endTime) <= toMinute(startTime)) return "종료시간은 시작시간보다 늦어야 합니다.";
+  if (matchMinutes < 10) return "경기시간은 최소 10분이어야 합니다.";
+  if (types.length === 0) return "최소 1개 경기 유형을 선택해주세요.";
+  if (types.includes("MD") && (teamA.maleCount < 2 || teamB.maleCount < 2)) {
+    return "남자복식은 팀당 남성 2명 이상이 필요합니다.";
+  }
+  if (types.includes("WD") && (teamA.femaleCount < 2 || teamB.femaleCount < 2)) {
+    return "여자복식은 팀당 여성 2명 이상이 필요합니다.";
+  }
+  if (
+    types.includes("MXD") &&
+    (teamA.maleCount < 1 || teamA.femaleCount < 1 || teamB.maleCount < 1 || teamB.femaleCount < 1)
+  ) {
+    return "혼합복식은 팀당 남·여 각 1명 이상이 필요합니다.";
+  }
+  return null;
+}
+
+function toMinute(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
+export function generateTeamSchedule(input: ScheduleInput, seed: number): GeneratedSchedule {
   const rand = makeRng(seed);
-  const males = buildPlayers("남", input.maleCount, input.maleNames);
-  const females = buildPlayers("여", input.femaleCount, input.femaleNames);
+  const teamAMales = buildPlayers(
+    getTeamMalePrefix(input.teamA.name),
+    input.teamA.maleCount,
+    input.teamA.maleNames
+  );
+  const teamAFemales = buildPlayers(
+    getTeamFemalePrefix(input.teamA.name),
+    input.teamA.femaleCount,
+    input.teamA.femaleNames
+  );
+  const teamBMales = buildPlayers(
+    getTeamMalePrefix(input.teamB.name),
+    input.teamB.maleCount,
+    input.teamB.maleNames
+  );
+  const teamBFemales = buildPlayers(
+    getTeamFemalePrefix(input.teamB.name),
+    input.teamB.femaleCount,
+    input.teamB.femaleNames
+  );
   const slots = makeTimeSlots(input.startTime, input.endTime, input.matchMinutes);
   const totalMatches = slots.length * input.courtCount;
 
+  const allPlayers = [...teamAMales, ...teamAFemales, ...teamBMales, ...teamBFemales];
   const state: ScheduleState = {
     playCount: new Map(),
     partnerCount: new Map(),
     oppCount: new Map(),
     matchSet: new Set(),
   };
-
-  [...males, ...females].forEach((p) => state.playCount.set(p, 0));
+  allPlayers.forEach((p) => state.playCount.set(p, 0));
 
   const schedule: ScheduleMatch[] = [];
   for (const time of slots) {
@@ -155,7 +214,15 @@ export function generateFreeSchedule(input: ScheduleInput, seed: number): Genera
       const typeRotation = shuffledCopy(input.types, rand);
       for (const type of typeRotation) {
         for (let i = 0; i < 20; i += 1) {
-          const match = makeMatch(type, males, females, state, rand);
+          const match = makeTeamMatch(
+            type,
+            teamAMales,
+            teamAFemales,
+            teamBMales,
+            teamBFemales,
+            state,
+            rand
+          );
           if (match) candidates.push(match);
         }
       }
@@ -179,10 +246,10 @@ export function generateFreeSchedule(input: ScheduleInput, seed: number): Genera
   const playCounts = [...state.playCount.values()];
   const maxPlay = Math.max(...playCounts);
   const minPlay = Math.min(...playCounts);
+
   const partnerByPlayer = new Map<string, Map<string, number>>();
   const opponentByPlayer = new Map<string, Map<string, number>>();
   const typeCountByPlayer = new Map<string, Record<MatchType, number>>();
-
   const emptyTypeCounts = (): Record<MatchType, number> => ({ MD: 0, WD: 0, MXD: 0 });
 
   for (const match of schedule) {
@@ -209,7 +276,6 @@ export function generateFreeSchedule(input: ScheduleInput, seed: number): Genera
     }
   }
 
-  const allPlayers = [...males, ...females];
   const playerStats: PlayerStat[] = allPlayers.map((player) => ({
     player,
     totalMatches: state.playCount.get(player) || 0,
@@ -218,55 +284,35 @@ export function generateFreeSchedule(input: ScheduleInput, seed: number): Genera
     opponents: Object.fromEntries([...(opponentByPlayer.get(player) || new Map())]),
   }));
 
+  const teamAPlayers = new Set([...teamAMales, ...teamAFemales]);
+  const teamBPlayers = new Set([...teamBMales, ...teamBFemales]);
+  let teamATotalMatches = 0;
+  let teamBTotalMatches = 0;
+  for (const [player, count] of state.playCount) {
+    if (teamAPlayers.has(player)) teamATotalMatches += count;
+    if (teamBPlayers.has(player)) teamBTotalMatches += count;
+  }
+
+  const teamInfo: TeamScheduleInfo = {
+    teamAName: input.teamA.name.trim(),
+    teamBName: input.teamB.name.trim(),
+    teamAMales,
+    teamAFemales,
+    teamBMales,
+    teamBFemales,
+    teamATotalMatches,
+    teamBTotalMatches,
+  };
+
   return {
-    mode: "free",
+    mode: "team",
     slots,
     totalMatches,
     schedule,
-    males,
-    females,
+    males: [...teamAMales, ...teamBMales],
+    females: [...teamAFemales, ...teamBFemales],
     playStat: { minPlay, maxPlay },
     playerStats,
+    teamInfo,
   };
-}
-
-export function generateSchedule(input: ScheduleInput, seed: number): GeneratedSchedule {
-  if (input.mode === "team") return generateTeamSchedule(input, seed);
-  return generateFreeSchedule(input, seed);
-}
-
-export function validateInput(input: ScheduleInput): string | null {
-  if (input.mode === "team") return validateTeamInput(input);
-
-  const { maleCount, femaleCount, courtCount, startTime, endTime, matchMinutes, types } = input;
-  if (maleCount < 0 || femaleCount < 0) return "인원 수는 0 이상이어야 합니다.";
-  if (courtCount < 1) return "코트 수는 1 이상이어야 합니다.";
-  if (toMinute(endTime) <= toMinute(startTime)) return "종료시간은 시작시간보다 늦어야 합니다.";
-  if (matchMinutes < 10) return "경기시간은 최소 10분이어야 합니다.";
-  if (types.length === 0) return "최소 1개 경기 유형을 선택해주세요.";
-  if (types.includes("MD") && maleCount < 4) return "남자복식을 위해 남성 4명 이상이 필요합니다.";
-  if (types.includes("WD") && femaleCount < 4) return "여자복식을 위해 여성 4명 이상이 필요합니다.";
-  if (types.includes("MXD") && (maleCount < 2 || femaleCount < 2))
-    return "혼합복식을 위해 남성/여성 각 2명 이상이 필요합니다.";
-  return null;
-}
-
-export { parseTypeLabel };
-
-export function isCurrentSlot(timeLabel: string, matchMinutes: number): boolean {
-  const now = new Date();
-  const nowMinute = now.getHours() * 60 + now.getMinutes();
-  const slotStart = toMinute(timeLabel);
-  const slotEnd = slotStart + matchMinutes;
-  return nowMinute >= slotStart && nowMinute < slotEnd;
-}
-
-export function matchToText(match: ScheduleMatch): string {
-  if (match.empty) return "배정 실패";
-  return `${match.teamA![0]} / ${match.teamA![1]} VS ${match.teamB![0]} / ${match.teamB![1]} (${parseTypeLabel(match.type!)})`;
-}
-
-export function formatMatchText(match: ScheduleMatch, teamInfo?: TeamScheduleInfo): string {
-  if (teamInfo) return formatTeamMatchText(match, teamInfo);
-  return matchToText(match);
 }
