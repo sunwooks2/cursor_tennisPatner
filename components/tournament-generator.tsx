@@ -13,6 +13,7 @@ import {
   exportPrintLayoutAsLandscapeImage,
   isMobileDevice,
 } from "@/lib/export-image";
+import { NumberStepper } from "@/components/number-stepper";
 import { PlayerStatsBars } from "@/components/player-stats-bars";
 import { PlayerStatsPrint } from "@/components/player-stats-print";
 import { ScheduleMatchView } from "@/components/schedule-match-view";
@@ -289,39 +290,24 @@ export function TournamentGenerator() {
       <section className="no-print mb-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
         <h2 className="mb-3 text-[1.1rem] font-semibold">대진 생성 조건</h2>
         <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-3">
-          <label>
-            <span className="mb-1.5 block text-[0.92rem]">남성 인원수</span>
-            <input
-              type="number"
-              min={0}
-              required
-              value={input.maleCount}
-              onChange={(e) => handleMaleCountChange(Number(e.target.value))}
-              className="w-full rounded-lg border border-[var(--line)] px-2.5 py-2.5"
-            />
-          </label>
-          <label>
-            <span className="mb-1.5 block text-[0.92rem]">여성 인원수</span>
-            <input
-              type="number"
-              min={0}
-              required
-              value={input.femaleCount}
-              onChange={(e) => handleFemaleCountChange(Number(e.target.value))}
-              className="w-full rounded-lg border border-[var(--line)] px-2.5 py-2.5"
-            />
-          </label>
-          <label>
-            <span className="mb-1.5 block text-[0.92rem]">코트 수</span>
-            <input
-              type="number"
-              min={1}
-              required
-              value={input.courtCount}
-              onChange={(e) => setInput((prev) => ({ ...prev, courtCount: Number(e.target.value) }))}
-              className="w-full rounded-lg border border-[var(--line)] px-2.5 py-2.5"
-            />
-          </label>
+          <NumberStepper
+            label="남성 인원수"
+            value={input.maleCount}
+            min={0}
+            onChange={handleMaleCountChange}
+          />
+          <NumberStepper
+            label="여성 인원수"
+            value={input.femaleCount}
+            min={0}
+            onChange={handleFemaleCountChange}
+          />
+          <NumberStepper
+            label="코트 수"
+            value={input.courtCount}
+            min={1}
+            onChange={(courtCount) => setInput((prev) => ({ ...prev, courtCount }))}
+          />
           {input.maleCount > 0 && (
             <div className="col-span-full rounded-lg border border-[var(--line)] bg-[#f8fafc] px-3 py-2.5">
               <p className="mb-2 text-sm font-medium">남성 이름 (미입력 시 남1, 남2...)</p>
