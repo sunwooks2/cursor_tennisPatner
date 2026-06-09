@@ -189,7 +189,7 @@ export function FeedbackButton() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-sm text-[var(--muted)] underline-offset-2 hover:text-[var(--text)] hover:underline"
+        className="shrink-0 rounded-lg border border-[var(--primary-border)] bg-[var(--primary)] px-3 py-1.5 text-sm font-semibold text-[var(--primary-foreground)] transition-opacity hover:opacity-90"
       >
         의견 보내기
       </button>
