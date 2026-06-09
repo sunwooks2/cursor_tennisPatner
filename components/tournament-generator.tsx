@@ -5,10 +5,12 @@ import { useSearchParams } from "next/navigation";
 import {
   generateSchedule,
   isCurrentSlot,
+  matchToText,
   validateInput,
 } from "@/lib/schedule";
 import { exportElementAsImage } from "@/lib/export-image";
 import { PlayerStatsBars } from "@/components/player-stats-bars";
+import { PlayerStatsPrint } from "@/components/player-stats-print";
 import { ScheduleMatchView } from "@/components/schedule-match-view";
 import { getFilterChipClass } from "@/lib/match-theme";
 import type { CourtFilter, GeneratedSchedule, MatchType, ScheduleInput } from "@/lib/types";
@@ -200,6 +202,14 @@ export function TournamentGenerator() {
     }
   };
 
+  const handlePrint = () => {
+    if (!generated) {
+      alert("먼저 대진을 생성해주세요.");
+      return;
+    }
+    window.print();
+  };
+
   const toggleType = (type: MatchType) => {
     setInput((prev) => {
       const exists = prev.types.includes(type);
@@ -376,24 +386,24 @@ export function TournamentGenerator() {
             ))}
           </fieldset>
 
-          <div className="col-span-full grid grid-cols-4 gap-1.5">
+          <div className="col-span-full grid grid-cols-5 gap-1.5">
             <button
               type="submit"
-              className="rounded-lg bg-[var(--primary)] px-2 py-2.5 text-sm font-semibold whitespace-nowrap text-[var(--primary-foreground)]"
+              className="rounded-lg bg-[var(--primary)] px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap text-[var(--primary-foreground)]"
             >
               대진 생성
             </button>
             <button
               type="button"
               onClick={handleRegenerate}
-              className="rounded-lg border border-[var(--line)] bg-white px-2 py-2.5 text-sm font-semibold whitespace-nowrap"
+              className="rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap"
             >
               다시 생성
             </button>
             <button
               type="button"
               onClick={handleShare}
-              className="rounded-lg border border-[var(--line)] bg-white px-2 py-2.5 text-sm font-semibold whitespace-nowrap"
+              className="rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap"
             >
               링크 복사
             </button>
@@ -401,16 +411,23 @@ export function TournamentGenerator() {
               type="button"
               onClick={handleImageDownload}
               disabled={isExporting}
-              className="rounded-lg border border-[var(--line)] bg-white px-2 py-2.5 text-sm font-semibold whitespace-nowrap disabled:opacity-60"
+              className="rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap disabled:opacity-60"
             >
-              {isExporting ? "저장 중..." : "저장"}
+              {isExporting ? "저장 중" : "저장"}
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap"
+            >
+              인쇄
             </button>
           </div>
         </form>
       </section>
 
       {generated && (
-        <div ref={exportRef}>
+        <div ref={exportRef} className="screen-only">
           <section className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
             <h2 className="mb-3 text-[1.1rem] font-semibold">생성된 대진표</h2>
             <div className="export-exclude mb-3 flex flex-wrap gap-1.5">
@@ -499,6 +516,70 @@ export function TournamentGenerator() {
             </p>
             <PlayerStatsBars stats={generated.playerStats} />
           </section>
+        </div>
+      )}
+
+      {generated && (
+        <div className="print-only hidden" aria-hidden>
+          <div className="print-content">
+            <header className="print-header">
+              <h1 className="print-title">테니스 대진표</h1>
+              <p className="print-meta">
+                {input.startTime} ~ {input.endTime} · 코트 {input.courtCount} · 경기 {input.matchMinutes}분 · 남{" "}
+                {input.maleCount} / 여 {input.femaleCount}
+              </p>
+              <p className="print-participants">
+                {generated.males.length > 0 && (
+                  <span>
+                    <strong>남</strong> {generated.males.join(", ")}
+                  </span>
+                )}
+                {generated.males.length > 0 && generated.females.length > 0 && (
+                  <span className="print-participants-sep"> · </span>
+                )}
+                {generated.females.length > 0 && (
+                  <span>
+                    <strong>여</strong> {generated.females.join(", ")}
+                  </span>
+                )}
+              </p>
+            </header>
+
+            <section className="print-block">
+              <h2 className="print-heading">대진표</h2>
+              <table className="print-table print-schedule-table">
+                <thead>
+                  <tr>
+                    <th>시간</th>
+                    {Array.from({ length: courtCount }, (_, i) => (
+                      <th key={i}>코트{i + 1}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...slotMap.entries()].map(([time, list]) => (
+                    <tr key={time}>
+                      <th className="print-time-cell">{time}</th>
+                      {Array.from({ length: courtCount }, (_, i) => {
+                        const court = i + 1;
+                        const match = list.find((x) => x.court === court);
+                        return (
+                          <td key={court}>
+                            {match && !match.empty ? matchToText(match) : "-"}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+
+            <section className="print-block">
+              <h2 className="print-heading">참가자별 페어/상대 통계</h2>
+              <PlayerStatsPrint stats={generated.playerStats} />
+            </section>
+          </div>
         </div>
       )}
     </main>

@@ -37,19 +37,7 @@ async function shareImage(blob: Blob, filename: string): Promise<boolean> {
   return true;
 }
 
-export async function exportElementAsImage(element: HTMLElement, filename: string): Promise<void> {
-  const dataUrl = await toPng(element, {
-    cacheBust: true,
-    pixelRatio: 2,
-    backgroundColor: "#ffffff",
-    filter: (node) => {
-      if (!(node instanceof HTMLElement)) return true;
-      return !node.classList.contains("export-exclude");
-    },
-  });
-
-  const blob = dataUrlToBlob(dataUrl);
-
+async function saveBlob(blob: Blob, filename: string): Promise<void> {
   if (isMobileDevice()) {
     try {
       const shared = await shareImage(blob, filename);
@@ -60,4 +48,31 @@ export async function exportElementAsImage(element: HTMLElement, filename: strin
   }
 
   await downloadBlob(blob, filename);
+}
+
+export interface ExportImageOptions {
+  pixelRatio?: number;
+}
+
+async function renderToBlob(element: HTMLElement, options: ExportImageOptions = {}): Promise<Blob> {
+  const dataUrl = await toPng(element, {
+    cacheBust: true,
+    pixelRatio: options.pixelRatio ?? 2,
+    backgroundColor: "#ffffff",
+    filter: (node) => {
+      if (!(node instanceof HTMLElement)) return true;
+      return !node.classList.contains("export-exclude");
+    },
+  });
+
+  return dataUrlToBlob(dataUrl);
+}
+
+export async function exportElementAsImage(
+  element: HTMLElement,
+  filename: string,
+  options: ExportImageOptions = {}
+): Promise<void> {
+  const blob = await renderToBlob(element, options);
+  await saveBlob(blob, filename);
 }
