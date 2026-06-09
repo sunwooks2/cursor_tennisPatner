@@ -13,6 +13,7 @@ import {
   exportPrintLayoutAsLandscapeImage,
   isMobileDevice,
 } from "@/lib/export-image";
+import { FeedbackButton } from "@/components/feedback-form";
 import { NumberStepper } from "@/components/number-stepper";
 import { PlayerStatsBars } from "@/components/player-stats-bars";
 import { PlayerStatsPrint } from "@/components/player-stats-print";
@@ -284,7 +285,10 @@ export function TournamentGenerator() {
   return (
     <main className="mx-auto w-full max-w-[1120px] p-4">
       <header className="no-print mb-3">
-        <h1 className="mb-2 text-[1.4rem] font-bold">테니스 대진표 자동 생성기</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="mb-0 text-[1.4rem] font-bold">테니스 대진표 자동 생성기</h1>
+          <FeedbackButton />
+        </div>
       </header>
 
       <section className="no-print mb-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
