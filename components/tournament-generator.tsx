@@ -18,6 +18,7 @@ import { NumberStepper } from "@/components/number-stepper";
 import { PlayerStatsBars } from "@/components/player-stats-bars";
 import { PlayerStatsPrint } from "@/components/player-stats-print";
 import { ScheduleMatchView } from "@/components/schedule-match-view";
+import { buildScheduleShareUrl, shareScheduleLink } from "@/lib/share-link";
 import { getFilterChipClass } from "@/lib/match-theme";
 import type { CourtFilter, GeneratedSchedule, MatchType, ScheduleInput } from "@/lib/types";
 
@@ -167,29 +168,22 @@ export function TournamentGenerator() {
   };
 
   const handleShare = async () => {
-    if (!generated) return;
-    const q = new URLSearchParams({
-      m: String(input.maleCount),
-      f: String(input.femaleCount),
-      c: String(input.courtCount),
-      s: input.startTime,
-      e: input.endTime,
-      d: String(input.matchMinutes),
-      t: input.types.join(","),
-      seed: String(seed),
-    });
-    if (input.maleNames.some((n) => n.trim())) {
-      q.set("mn", input.maleNames.join("|"));
+    if (!generated) {
+      alert("먼저 대진을 생성해주세요.");
+      return;
     }
-    if (input.femaleNames.some((n) => n.trim())) {
-      q.set("fn", input.femaleNames.join("|"));
-    }
-    const url = `${window.location.origin}?${q.toString()}`;
+
+    const url = buildScheduleShareUrl(input, seed);
     try {
-      await navigator.clipboard.writeText(url);
-      alert("공유 링크를 복사했습니다.");
-    } catch {
-      alert("복사에 실패했습니다.");
+      const result = await shareScheduleLink(url);
+      if (result === "shared") {
+        alert("공유했습니다.");
+      } else {
+        alert("공유 링크를 복사했습니다.");
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      alert("공유에 실패했습니다.");
     }
   };
 
@@ -436,7 +430,7 @@ export function TournamentGenerator() {
               onClick={handleShare}
               className="rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap"
             >
-              링크 복사
+              공유
             </button>
             <button
               type="button"
@@ -444,7 +438,7 @@ export function TournamentGenerator() {
               disabled={isExporting || isExcelExporting || isPrintExporting}
               className="rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap disabled:opacity-60"
             >
-              {isExporting ? "저장 중" : "저장"}
+              {isExporting ? "img저장 중" : "img저장"}
             </button>
             <button
               type="button"
@@ -452,7 +446,7 @@ export function TournamentGenerator() {
               disabled={isExporting || isExcelExporting || isPrintExporting}
               className="rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap disabled:opacity-60"
             >
-              {isExcelExporting ? "엑셀 중" : "엑셀"}
+              {isExcelExporting ? "엑셀저장 중" : "엑셀저장"}
             </button>
             <button
               type="button"
