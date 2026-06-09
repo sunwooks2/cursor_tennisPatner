@@ -20,6 +20,7 @@ import { PlayerStatsPrint } from "@/components/player-stats-print";
 import { ScheduleMatchView } from "@/components/schedule-match-view";
 import { buildScheduleShareUrl, shareScheduleLink } from "@/lib/share-link";
 import { getFilterChipClass } from "@/lib/match-theme";
+import { trackEvent } from "@/lib/track-event";
 import type { CourtFilter, GeneratedSchedule, MatchType, ScheduleInput } from "@/lib/types";
 
 const DEFAULT_INPUT: ScheduleInput = {
@@ -118,6 +119,12 @@ export function TournamentGenerator() {
     setInitialized(true);
   }, [initialized, runGenerate, searchParams]);
 
+  useEffect(() => {
+    trackEvent("page_view", {
+      shared: new URLSearchParams(window.location.search).has("seed"),
+    });
+  }, []);
+
   const schedule = generated?.schedule ?? [];
   const courtCount = input.courtCount;
 
@@ -156,6 +163,11 @@ export function TournamentGenerator() {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
+    trackEvent("대진 생성", {
+      maleCount: input.maleCount,
+      femaleCount: input.femaleCount,
+      courtCount: input.courtCount,
+    });
     runGenerate(input, Date.now());
   };
 
@@ -164,6 +176,7 @@ export function TournamentGenerator() {
       alert("먼저 대진을 생성해주세요.");
       return;
     }
+    trackEvent("다시 생성");
     runGenerate(input, Date.now());
   };
 
@@ -173,6 +186,7 @@ export function TournamentGenerator() {
       return;
     }
 
+    trackEvent("공유");
     const url = buildScheduleShareUrl(input, seed);
     try {
       const result = await shareScheduleLink(url);
@@ -194,6 +208,7 @@ export function TournamentGenerator() {
     }
     if (!exportRef.current) return;
 
+    trackEvent("이미지저장");
     setIsExporting(true);
     try {
       const filename = `tennis-schedule-${input.startTime.replace(":", "")}.png`;
@@ -212,6 +227,7 @@ export function TournamentGenerator() {
     }
 
     setIsExcelExporting(true);
+    trackEvent("엑셀저장");
     try {
       const { downloadPrintLayoutExcel } = await import("@/lib/export-excel");
       const filename = `tennis-schedule-${input.startTime.replace(":", "")}.xlsx`;
@@ -228,6 +244,8 @@ export function TournamentGenerator() {
       alert("먼저 대진을 생성해주세요.");
       return;
     }
+
+    trackEvent("인쇄", { mobile: isMobileDevice() });
 
     if (isMobileDevice()) {
       if (!printExportRef.current) return;
@@ -438,7 +456,7 @@ export function TournamentGenerator() {
               disabled={isExporting || isExcelExporting || isPrintExporting}
               className="rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap disabled:opacity-60"
             >
-              {isExporting ? "img저장 중" : "img저장"}
+              {isExporting ? "이미지저장 중" : "이미지저장"}
             </button>
             <button
               type="button"

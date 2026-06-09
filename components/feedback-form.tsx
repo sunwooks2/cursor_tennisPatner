@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { trackEvent } from "@/lib/track-event";
 
 const FEEDBACK_TYPES = ["버그", "개선", "기능 추가", "기타"] as const;
 
@@ -57,6 +58,7 @@ export function FeedbackForm({ open, onClose }: FeedbackFormProps) {
       }
 
       alert("소중한 의견 감사합니다!");
+      trackEvent("의견 전송", { type });
       resetForm();
       onClose();
     } catch {
@@ -188,7 +190,10 @@ export function FeedbackButton() {
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          trackEvent("의견보내기");
+          setOpen(true);
+        }}
         className="shrink-0 rounded-lg border border-[var(--primary-border)] bg-[var(--primary)] px-3 py-1.5 text-sm font-semibold text-[var(--primary-foreground)] transition-opacity hover:opacity-90"
       >
         의견 보내기
