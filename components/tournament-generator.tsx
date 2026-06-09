@@ -90,6 +90,7 @@ export function TournamentGenerator() {
   const [courtFilter, setCourtFilter] = useState<CourtFilter>("ALL");
   const [initialized, setInitialized] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExcelExporting, setIsExcelExporting] = useState(false);
   const [isPrintExporting, setIsPrintExporting] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
   const printExportRef = useRef<HTMLDivElement>(null);
@@ -207,6 +208,24 @@ export function TournamentGenerator() {
       alert("이미지 저장에 실패했습니다.");
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleExcelDownload = async () => {
+    if (!generated) {
+      alert("먼저 대진을 생성해주세요.");
+      return;
+    }
+
+    setIsExcelExporting(true);
+    try {
+      const { downloadPrintLayoutExcel } = await import("@/lib/export-excel");
+      const filename = `tennis-schedule-${input.startTime.replace(":", "")}.xlsx`;
+      await downloadPrintLayoutExcel(input, generated, slotMap, filename);
+    } catch {
+      alert("엑셀 저장에 실패했습니다.");
+    } finally {
+      setIsExcelExporting(false);
     }
   };
 
@@ -398,7 +417,7 @@ export function TournamentGenerator() {
             ))}
           </fieldset>
 
-          <div className="col-span-full grid grid-cols-5 gap-1.5">
+          <div className="col-span-full grid grid-cols-3 gap-1.5 sm:grid-cols-6">
             <button
               type="submit"
               className="rounded-lg bg-[var(--primary)] px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap text-[var(--primary-foreground)]"
@@ -422,15 +441,23 @@ export function TournamentGenerator() {
             <button
               type="button"
               onClick={handleImageDownload}
-              disabled={isExporting || isPrintExporting}
+              disabled={isExporting || isExcelExporting || isPrintExporting}
               className="rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap disabled:opacity-60"
             >
               {isExporting ? "저장 중" : "저장"}
             </button>
             <button
               type="button"
+              onClick={handleExcelDownload}
+              disabled={isExporting || isExcelExporting || isPrintExporting}
+              className="rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap disabled:opacity-60"
+            >
+              {isExcelExporting ? "엑셀 중" : "엑셀"}
+            </button>
+            <button
+              type="button"
               onClick={handlePrint}
-              disabled={isExporting || isPrintExporting}
+              disabled={isExporting || isExcelExporting || isPrintExporting}
               className="rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap disabled:opacity-60"
             >
               {isPrintExporting ? "인쇄 중" : "인쇄"}
