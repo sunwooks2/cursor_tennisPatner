@@ -14,6 +14,7 @@ import {
 } from "@/lib/export-image";
 import { FeedbackButton } from "@/components/feedback-form";
 import { GenerationToast } from "@/components/generation-toast";
+import { TennisBallIcon } from "@/components/tennis-ball-icon";
 import { NumberStepper } from "@/components/number-stepper";
 import { PlayerMatchCountSummary } from "@/components/player-match-count-summary";
 import { MobileScheduleByTime } from "@/components/mobile-schedule-by-time";
@@ -365,13 +366,15 @@ export function TournamentGenerator() {
     <main className="mx-auto w-full max-w-[1120px] p-4">
       <header className="no-print mb-3">
         <div className="flex items-start justify-between gap-3">
-          <h1 className="mb-0 text-[1.4rem] font-bold">테니스 대진표 자동 생성기</h1>
+          <h1 className="mb-0 flex min-w-0 items-center gap-1.5 text-[1.2rem] font-semibold text-[#4a6278]">
+            <TennisBallIcon className="text-[1.05rem]" />
+            <span>테니스 대진표 생성기</span>
+          </h1>
           <FeedbackButton />
         </div>
       </header>
 
       <section className="no-print mb-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
-        <h2 className="mb-3 text-[1.1rem] font-semibold">대진 생성 조건</h2>
         <div className="mb-3 flex gap-1.5">
           {MODE_OPTIONS.map(({ value, label }) => (
             <button

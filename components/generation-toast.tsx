@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { TennisBallIcon } from "@/components/tennis-ball-icon";
 
 interface GenerationToastProps {
   message: string;
@@ -15,9 +16,7 @@ export function GenerationToast({ message, onClose }: GenerationToastProps) {
 
   return (
     <div className="generation-toast" role="status" aria-live="polite">
-      <span className="generation-toast-ball" aria-hidden>
-        🎾
-      </span>
+      <TennisBallIcon animated />
       <span>{message}</span>
     </div>
   );

@@ -85,7 +85,7 @@ export function FeedbackForm({ open, onClose }: FeedbackFormProps) {
       >
         <div className="mb-3 flex items-center justify-between">
           <h2 id="feedback-title" className="text-[1.05rem] font-semibold">
-            의견 보내기
+            개선제안
           </h2>
           <button
             type="button"
@@ -191,12 +191,15 @@ export function FeedbackButton() {
       <button
         type="button"
         onClick={() => {
-          trackEvent("의견보내기");
+          trackEvent("개선제안");
           setOpen(true);
         }}
-        className="shrink-0 rounded-lg border border-[var(--primary-border)] bg-[var(--primary)] px-3 py-1.5 text-sm font-semibold text-[var(--primary-foreground)] transition-opacity hover:opacity-90"
+        className="flex shrink-0 items-center gap-1 rounded-lg border border-[#1e3510] bg-[#2a4a18] px-2.5 py-1.5 text-xs font-semibold text-[var(--primary-soft)] shadow-sm shadow-[#2a4a18]/30 hover:bg-[#355a22]"
       >
-        의견 보내기
+        <span className="text-sm leading-none" aria-hidden>
+          💡
+        </span>
+        <span>개선제안</span>
       </button>
       <FeedbackForm open={open} onClose={() => setOpen(false)} />
     </>
