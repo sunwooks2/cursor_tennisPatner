@@ -4,7 +4,6 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { useSearchParams } from "next/navigation";
 import {
   generateSchedule,
-  isCurrentSlot,
   formatMatchText,
   validateInput,
 } from "@/lib/schedule";
@@ -555,9 +554,8 @@ export function TournamentGenerator() {
                 </thead>
                 <tbody>
                   {[...slotMap.entries()].map(([time, list]) => {
-                    const current = isCurrentSlot(time, input.matchMinutes);
                     return (
-                      <tr key={time} className={current ? "bg-[var(--highlight)]" : "border-b border-[var(--line)]"}>
+                      <tr key={time} className="border-b border-[var(--line)]">
                         <th className="p-2 text-left text-sm font-semibold">{time}</th>
                         {visibleCourts.map((court) => {
                           const match = list.find((x) => x.court === court);
@@ -576,13 +574,10 @@ export function TournamentGenerator() {
 
             <div className="mt-2.5 grid gap-2 md:hidden">
               {filteredSchedule.map((item) => {
-                const current = isCurrentSlot(item.time, input.matchMinutes);
                 return (
                   <article
                     key={`${item.time}-${item.court}`}
-                    className={`rounded-lg border border-[var(--line)] px-3 py-2 text-sm leading-snug ${
-                      current ? "bg-[var(--highlight)]" : "bg-white"
-                    }`}
+                    className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm leading-snug"
                   >
                     {item.empty ? (
                       <p className="m-0 text-[var(--muted)]">
