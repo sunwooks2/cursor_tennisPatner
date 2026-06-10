@@ -24,7 +24,7 @@ export function NumberStepper({ label, value, min, max, onChange }: NumberSteppe
   };
 
   return (
-    <label>
+    <label className="block">
       <span className="mb-1.5 block text-[0.92rem]">{label}</span>
       <div className="flex overflow-hidden rounded-lg border border-[var(--line)] bg-white">
         <button

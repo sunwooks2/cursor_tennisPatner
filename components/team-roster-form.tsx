@@ -35,7 +35,7 @@ export function TeamRosterForm({ roster, onChange }: TeamRosterFormProps) {
       </label>
 
       <div className="grid grid-cols-2 gap-2">
-        <div className="space-y-2">
+        <div className="flex flex-col gap-4">
           <NumberStepper
             label="남성 인원"
             value={roster.maleCount}
@@ -50,7 +50,7 @@ export function TeamRosterForm({ roster, onChange }: TeamRosterFormProps) {
           {roster.maleCount > 0 && (
             <div>
               <p className="mb-2 text-xs text-[var(--muted)]">
-                남성 이름 (미입력 시 {malePrefix}1, {malePrefix}2 …)
+                이름(미입력시 {malePrefix}1..)
               </p>
               <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                 {Array.from({ length: roster.maleCount }, (_, i) => (
@@ -76,7 +76,7 @@ export function TeamRosterForm({ roster, onChange }: TeamRosterFormProps) {
             </div>
           )}
         </div>
-        <div className="space-y-2">
+        <div className="flex flex-col gap-4">
           <NumberStepper
             label="여성 인원"
             value={roster.femaleCount}
@@ -91,7 +91,7 @@ export function TeamRosterForm({ roster, onChange }: TeamRosterFormProps) {
           {roster.femaleCount > 0 && (
             <div>
               <p className="mb-2 text-xs text-[var(--muted)]">
-                여성 이름 (미입력 시 {femalePrefix}1, {femalePrefix}2...)
+                이름(미입력시 {femalePrefix}1..)
               </p>
               <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                 {Array.from({ length: roster.femaleCount }, (_, i) => (

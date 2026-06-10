@@ -339,7 +339,7 @@ export function TournamentGenerator() {
         <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-3">
           {input.mode === "free" ? (
             <div className="col-span-full grid grid-cols-2 gap-2">
-              <div className="space-y-2">
+              <div className="flex flex-col gap-4">
                 <NumberStepper
                   label="남성 인원수"
                   value={input.maleCount}
@@ -348,7 +348,7 @@ export function TournamentGenerator() {
                 />
                 {input.maleCount > 0 && (
                   <div className="rounded-lg border border-[var(--line)] bg-[#f8fafc] px-2.5 py-2">
-                    <p className="mb-2 text-xs text-[var(--muted)]">남성 이름 (미입력 시 남1, 남2...)</p>
+                    <p className="mb-2 text-xs text-[var(--muted)]">이름(미입력시 남1..)</p>
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                       {Array.from({ length: input.maleCount }, (_, i) => (
                         <label key={`male-name-${i}`} className="min-w-0">
@@ -366,7 +366,7 @@ export function TournamentGenerator() {
                   </div>
                 )}
               </div>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-4">
                 <NumberStepper
                   label="여성 인원수"
                   value={input.femaleCount}
@@ -375,7 +375,7 @@ export function TournamentGenerator() {
                 />
                 {input.femaleCount > 0 && (
                   <div className="rounded-lg border border-[var(--line)] bg-[#f8fafc] px-2.5 py-2">
-                    <p className="mb-2 text-xs text-[var(--muted)]">여성 이름 (미입력 시 여1, 여2...)</p>
+                    <p className="mb-2 text-xs text-[var(--muted)]">이름(미입력시 여1..)</p>
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                       {Array.from({ length: input.femaleCount }, (_, i) => (
                         <label key={`female-name-${i}`} className="min-w-0">
