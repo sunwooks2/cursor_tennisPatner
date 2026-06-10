@@ -430,34 +430,34 @@ export function TournamentGenerator() {
               </p>
             </div>
           )}
-          <div className="col-span-full grid grid-cols-2 gap-2 md:grid-cols-4">
+          <div className="col-span-full grid grid-cols-2 gap-2 md:grid-cols-4 [&>*]:min-w-0">
             <NumberStepper
               label="코트 수"
               value={input.courtCount}
               min={1}
               onChange={(courtCount) => setInput((prev) => ({ ...prev, courtCount }))}
             />
-            <label>
+            <label className="block min-w-0">
               <span className="mb-1.5 block text-[0.92rem]">시작시간</span>
               <input
                 type="time"
                 required
                 value={input.startTime}
                 onChange={(e) => handleStartTimeChange(e.target.value)}
-                className="w-full rounded-lg border border-[var(--line)] px-2.5 py-2.5"
+                className="form-control-input w-full rounded-lg border border-[var(--line)] bg-white px-2 py-2.5 text-[0.92rem]"
               />
             </label>
-            <label>
+            <label className="block min-w-0">
               <span className="mb-1.5 block text-[0.92rem]">종료시간</span>
               <input
                 type="time"
                 required
                 value={input.endTime}
                 onChange={(e) => setInput((prev) => ({ ...prev, endTime: e.target.value }))}
-                className="w-full rounded-lg border border-[var(--line)] px-2.5 py-2.5"
+                className="form-control-input w-full rounded-lg border border-[var(--line)] bg-white px-2 py-2.5 text-[0.92rem]"
               />
             </label>
-            <label>
+            <label className="block min-w-0">
               <span className="mb-1.5 block text-[0.92rem]">경기시간(분)</span>
               <input
                 type="number"
@@ -466,7 +466,7 @@ export function TournamentGenerator() {
                 required
                 value={input.matchMinutes}
                 onChange={(e) => setInput((prev) => ({ ...prev, matchMinutes: Number(e.target.value) }))}
-                className="w-full rounded-lg border border-[var(--line)] px-2.5 py-2.5"
+                className="form-control-input w-full rounded-lg border border-[var(--line)] bg-white px-2 py-2.5 text-[0.92rem] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
             </label>
           </div>
