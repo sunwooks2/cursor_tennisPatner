@@ -9,7 +9,10 @@ export function PlayerHighlightChips({ players, selectedPlayer, onSelect }: Play
 
   return (
     <div className="export-exclude mb-3">
-      <p className="mb-1.5 text-xs font-semibold text-[var(--muted)]">내 경기 보기</p>
+      <p className="mb-1.5 text-xs font-semibold text-[var(--muted)]">
+        내 경기 보기
+        {selectedPlayer && <span className="font-normal"> · 경기 없는 시간은 휴식 타임으로 표시</span>}
+      </p>
       <div className="flex flex-wrap gap-1.5">
         <button
           type="button"

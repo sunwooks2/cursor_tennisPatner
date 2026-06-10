@@ -13,6 +13,7 @@ import {
   isMobileDevice,
 } from "@/lib/export-image";
 import { FeedbackButton } from "@/components/feedback-form";
+import { GenerationToast } from "@/components/generation-toast";
 import { NumberStepper } from "@/components/number-stepper";
 import { PlayerMatchCountSummary } from "@/components/player-match-count-summary";
 import { MobileScheduleByTime } from "@/components/mobile-schedule-by-time";
@@ -29,8 +30,13 @@ import {
 } from "@/lib/parse-schedule-input";
 import { formatMaxCourtsHint } from "@/lib/court-capacity";
 import { buildScheduleShareUrl, shareScheduleLink } from "@/lib/share-link";
-import { getMatchHighlightClass } from "@/lib/match-highlight";
+import { getMatchHighlightClass, isRestSlotForPlayer } from "@/lib/match-highlight";
+import { RestTimeView } from "@/components/rest-time-view";
 import { getFilterChipClass } from "@/lib/match-theme";
+import {
+  getGenerationFeedbackMessage,
+  type GenerationFeedbackType,
+} from "@/lib/generation-feedback";
 import { trackEvent } from "@/lib/track-event";
 import type { CourtFilter, GeneratedSchedule, MatchType, ScheduleInput, ScheduleMode } from "@/lib/types";
 
@@ -64,21 +70,50 @@ export function TournamentGenerator() {
   const [isExporting, setIsExporting] = useState(false);
   const [isExcelExporting, setIsExcelExporting] = useState(false);
   const [isPrintExporting, setIsPrintExporting] = useState(false);
+  const [generationToast, setGenerationToast] = useState<{ message: string; id: number } | null>(
+    null
+  );
+  const [resultsPulse, setResultsPulse] = useState(false);
+  const [generateFlash, setGenerateFlash] = useState<GenerationFeedbackType | null>(null);
   const exportRef = useRef<HTMLDivElement>(null);
   const printExportRef = useRef<HTMLDivElement>(null);
 
-  const runGenerate = useCallback((nextInput: ScheduleInput, nextSeed: number) => {
-    const error = validateInput(nextInput);
-    if (error) {
-      alert(error);
-      return;
-    }
-    setInput(nextInput);
-    setSeed(nextSeed);
-    setCourtFilter("ALL");
-    setHighlightedPlayer(null);
-    setGenerated(generateSchedule(nextInput, nextSeed));
-  }, []);
+  const triggerGenerationFeedback = useCallback(
+    (type: GenerationFeedbackType, result: GeneratedSchedule) => {
+      setGenerationToast({
+        message: getGenerationFeedbackMessage(type, result),
+        id: Date.now(),
+      });
+      setResultsPulse(true);
+      setGenerateFlash(type);
+      window.setTimeout(() => setResultsPulse(false), 1000);
+      window.setTimeout(() => setGenerateFlash(null), 400);
+      window.setTimeout(() => {
+        exportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
+    },
+    []
+  );
+
+  const runGenerate = useCallback(
+    (nextInput: ScheduleInput, nextSeed: number, feedback?: GenerationFeedbackType) => {
+      const error = validateInput(nextInput);
+      if (error) {
+        alert(error);
+        return;
+      }
+      const result = generateSchedule(nextInput, nextSeed);
+      setInput(nextInput);
+      setSeed(nextSeed);
+      setCourtFilter("ALL");
+      setHighlightedPlayer(null);
+      setGenerated(result);
+      if (feedback) {
+        triggerGenerationFeedback(feedback, result);
+      }
+    },
+    [triggerGenerationFeedback]
+  );
 
   useEffect(() => {
     if (initialized) return;
@@ -145,7 +180,7 @@ export function TournamentGenerator() {
             teamBFemales: input.teamB.femaleCount,
           }),
     });
-    runGenerate(input, Date.now());
+    runGenerate(input, Date.now(), "create");
   };
 
   const handleRegenerate = () => {
@@ -154,7 +189,7 @@ export function TournamentGenerator() {
       return;
     }
     trackEvent("다시 생성");
-    runGenerate(input, Date.now());
+    runGenerate(input, Date.now(), "regenerate");
   };
 
   const handleShare = async () => {
@@ -489,14 +524,18 @@ export function TournamentGenerator() {
           <div className="col-span-full grid grid-cols-3 gap-1.5 sm:grid-cols-6">
             <button
               type="submit"
-              className="rounded-lg bg-[var(--primary)] px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap text-[var(--primary-foreground)]"
+              className={`rounded-lg bg-[var(--primary)] px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap text-[var(--primary-foreground)] ${
+                generateFlash === "create" ? "generation-btn-flash" : ""
+              }`}
             >
               대진 생성
             </button>
             <button
               type="button"
               onClick={handleRegenerate}
-              className="rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap"
+              className={`rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap ${
+                generateFlash === "regenerate" ? "generation-btn-flash" : ""
+              }`}
             >
               다시 생성
             </button>
@@ -535,8 +574,19 @@ export function TournamentGenerator() {
         </form>
       </section>
 
+      {generationToast && (
+        <GenerationToast
+          key={generationToast.id}
+          message={generationToast.message}
+          onClose={() => setGenerationToast(null)}
+        />
+      )}
+
       {generated && (
-        <div ref={exportRef} className="screen-only">
+        <div
+          ref={exportRef}
+          className={`screen-only ${resultsPulse ? "generation-results-pulse" : ""}`}
+        >
           <section className="mb-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
             <p className="mb-2 text-xs font-semibold text-[var(--muted)]">경기 횟수</p>
             <PlayerMatchCountSummary
@@ -589,6 +639,23 @@ export function TournamentGenerator() {
                 </thead>
                 <tbody>
                   {[...slotMap.entries()].map(([time, list]) => {
+                    const isRest =
+                      highlightActive &&
+                      isRestSlotForPlayer(list, highlightedPlayer, visibleCourts);
+
+                    if (isRest) {
+                      return (
+                        <tr key={time} className="border-b border-[var(--line)] bg-[#f8fafc]">
+                          <th className="p-2 text-left text-sm font-semibold text-[var(--muted)]">
+                            {time}
+                          </th>
+                          <td colSpan={visibleCourts.length} className="p-2 align-middle">
+                            <RestTimeView />
+                          </td>
+                        </tr>
+                      );
+                    }
+
                     return (
                       <tr key={time} className="border-b border-[var(--line)]">
                         <th className="p-2 text-left text-sm font-semibold">{time}</th>
