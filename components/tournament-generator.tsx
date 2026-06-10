@@ -14,6 +14,8 @@ import {
 } from "@/lib/export-image";
 import { FeedbackButton } from "@/components/feedback-form";
 import { NumberStepper } from "@/components/number-stepper";
+import { PlayerMatchCountSummary } from "@/components/player-match-count-summary";
+import { MobileScheduleByTime } from "@/components/mobile-schedule-by-time";
 import { PlayerHighlightChips } from "@/components/player-highlight-chips";
 import { PlayerStatsBars } from "@/components/player-stats-bars";
 import { PlayerStatsPrint } from "@/components/player-stats-print";
@@ -125,11 +127,6 @@ export function TournamentGenerator() {
         ? Array.from({ length: courtCount }, (_, i) => i + 1)
         : [courtFilter],
     [courtCount, courtFilter]
-  );
-
-  const filteredSchedule = useMemo(
-    () => schedule.filter((item) => courtFilter === "ALL" || item.court === courtFilter),
-    [schedule, courtFilter]
   );
 
   const handleSubmit = (e: FormEvent) => {
@@ -540,6 +537,16 @@ export function TournamentGenerator() {
 
       {generated && (
         <div ref={exportRef} className="screen-only">
+          <section className="mb-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
+            <p className="mb-2 text-xs font-semibold text-[var(--muted)]">경기 횟수</p>
+            <PlayerMatchCountSummary
+              stats={generated.playerStats}
+              males={generated.males}
+              highlightedPlayer={highlightedPlayer}
+              onHighlightPlayer={handleHighlightPlayer}
+            />
+          </section>
+
           <section className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
             <h2 className="mb-3 text-[1.1rem] font-semibold">생성된 대진표</h2>
             <PlayerHighlightChips
@@ -604,42 +611,25 @@ export function TournamentGenerator() {
               </table>
             </div>
 
-            <div className="mt-2.5 grid gap-2 md:hidden">
-              {filteredSchedule.map((item) => {
-                return (
-                  <article
-                    key={`${item.time}-${item.court}`}
-                    className={`rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm leading-snug transition-opacity ${getMatchHighlightClass(item, highlightedPlayer, highlightActive)}`}
-                  >
-                    {item.empty ? (
-                      <p className="m-0 text-[var(--muted)]">
-                        <span className="font-semibold text-[var(--text)]">{item.time}</span> · 코트{item.court} · 배정
-                        실패
-                      </p>
-                    ) : (
-                      <p className="m-0 text-[var(--text)]">
-                        <span className="font-semibold">{item.time}</span>
-                        {courtFilter === "ALL" && (
-                          <span className="text-[var(--muted)]"> · 코트{item.court} · </span>
-                        )}
-                        {courtFilter !== "ALL" && <span className="text-[var(--muted)]"> · </span>}
-                        <ScheduleMatchView match={item} inline teamInfo={generated.teamInfo} />
-                      </p>
-                    )}
-                  </article>
-                );
-              })}
+            <div className="mt-2.5 md:hidden">
+              <MobileScheduleByTime
+                slots={[...slotMap.entries()]}
+                visibleCourts={visibleCourts}
+                teamInfo={generated.teamInfo}
+                highlightedPlayer={highlightedPlayer}
+                highlightActive={highlightActive}
+              />
             </div>
           </section>
 
           <section className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
             <h2 className="mb-2 text-[1.1rem] font-semibold">참가자별 페어/상대 통계</h2>
             <p className="mb-3 text-sm text-[var(--muted)]">
-              각 참가자의 총 경기수, 페어 횟수, 상대 만남 횟수를 막대 그래프로 표시합니다. 이름을
-              누르면 해당 참가자의 경기만 대진표에서 강조됩니다.
+              참가자별 페어 횟수, 상대 만남 횟수를 막대 그래프로 표시합니다.
             </p>
             <PlayerStatsBars
               stats={generated.playerStats}
+              males={generated.males}
               mode={generated.mode}
               teamInfo={generated.teamInfo}
               highlightedPlayer={highlightedPlayer}

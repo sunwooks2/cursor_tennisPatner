@@ -1,8 +1,10 @@
 import { buildRelationCounts, getOpposingTeamPlayers, getSameTeamPlayers } from "@/lib/team-stats";
+import { formatRelevantTypeCounts, isMalePlayer } from "@/lib/player-stats-display";
 import type { MatchType, PlayerStat, ScheduleMode, TeamScheduleInfo } from "@/lib/types";
 
 interface PlayerStatsBarsProps {
   stats: PlayerStat[];
+  males: string[];
   mode?: ScheduleMode;
   teamInfo?: TeamScheduleInfo;
   highlightedPlayer?: string | null;
@@ -36,12 +38,17 @@ function PlayerNameButton({
   );
 }
 
-function TypeCountLabel({ typeCounts }: { typeCounts: Record<MatchType, number> }) {
-  return (
-    <span className="ml-1 text-[0.68rem] font-normal text-[var(--muted)]">
-      여복 {typeCounts.WD}회 · 남복 {typeCounts.MD}회 · 혼복 {typeCounts.MXD}회
-    </span>
-  );
+function TypeCountLabel({
+  typeCounts,
+  isMale,
+}: {
+  typeCounts: Record<MatchType, number>;
+  isMale: boolean;
+}) {
+  const text = formatRelevantTypeCounts(typeCounts, isMale);
+  if (!text) return null;
+
+  return <span className="ml-1 text-[0.68rem] font-normal text-[var(--muted)]">{text}</span>;
 }
 
 function buildFullCounts(
@@ -106,6 +113,7 @@ function maxEntryCount(entriesList: [string, number][][]): number {
 
 export function PlayerStatsBars({
   stats,
+  males,
   mode = "free",
   teamInfo,
   highlightedPlayer = null,
@@ -117,7 +125,6 @@ export function PlayerStatsBars({
 
   const isTeamMode = mode === "team" && teamInfo;
   const allPlayers = stats.map((s) => s.player);
-  const maxTotal = Math.max(...stats.map((s) => s.totalMatches), 1);
 
   const partnerEntriesList = stats.map((stat) =>
     isTeamMode
@@ -133,86 +140,42 @@ export function PlayerStatsBars({
   const maxOpponent = maxEntryCount(opponentEntriesList);
 
   return (
-    <div className="space-y-4">
-      <div>
-        <p className="mb-2 text-xs font-semibold text-[var(--muted)]">총 경기수</p>
-        <div className="space-y-2">
-          {stats.map((stat) => {
-            const width =
-              stat.totalMatches > 0
-                ? Math.max((stat.totalMatches / maxTotal) * 100, 8)
-                : 0;
-            return (
-              <div key={`total-${stat.player}`} className="flex items-center gap-2">
-                <div className="flex min-w-[7rem] shrink-0 flex-wrap items-baseline gap-x-1">
-                  <PlayerNameButton
-                    name={stat.player}
-                    active={highlightedPlayer === stat.player}
-                    onClick={
-                      onHighlightPlayer
-                        ? () =>
-                            onHighlightPlayer(
-                              highlightedPlayer === stat.player ? null : stat.player
-                            )
-                        : undefined
-                    }
-                  />
-                  <TypeCountLabel typeCounts={stat.typeCounts} />
-                </div>
-                <div className="relative h-6 flex-1 overflow-hidden rounded bg-[#eef2f8]">
-                  {stat.totalMatches > 0 ? (
-                    <div
-                      className="flex h-full items-center rounded bg-[var(--primary)] px-2 text-xs font-semibold text-[var(--primary-foreground)]"
-                      style={{ width: `${width}%`, minWidth: "2.5rem" }}
-                    >
-                      {stat.totalMatches}경기
-                    </div>
-                  ) : (
-                    <span className="absolute inset-y-0 left-2 flex items-center text-xs text-[var(--muted)]">
-                      0경기
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        {stats.map((stat, index) => (
-          <article
-            key={stat.player}
-            className="rounded-lg border border-[var(--line)] bg-white p-3"
-          >
-            <h3 className="mb-3 flex flex-wrap items-baseline gap-x-1 text-sm font-bold">
-              <PlayerNameButton
-                name={stat.player}
-                active={highlightedPlayer === stat.player}
-                onClick={
-                  onHighlightPlayer
-                    ? () =>
-                        onHighlightPlayer(highlightedPlayer === stat.player ? null : stat.player)
-                    : undefined
-                }
-              />
-              <TypeCountLabel typeCounts={stat.typeCounts} />
-            </h3>
-            <div className="space-y-4">
-              <CountBars
-                title={isTeamMode ? "페어" : "페어 상대"}
-                entries={partnerEntriesList[index]}
-                maxCount={maxPartner}
-              />
-              <CountBars
-                title={isTeamMode ? "상대" : "상대 팀원"}
-                entries={opponentEntriesList[index]}
-                maxCount={maxOpponent}
-              />
-            </div>
-          </article>
-        ))}
-      </div>
+    <div className="grid gap-4 md:grid-cols-2">
+      {stats.map((stat, index) => (
+        <article
+          key={stat.player}
+          className="rounded-lg border border-[var(--line)] bg-white p-3"
+        >
+          <h3 className="mb-3 flex flex-wrap items-baseline gap-x-1 text-sm font-bold">
+            <PlayerNameButton
+              name={stat.player}
+              active={highlightedPlayer === stat.player}
+              onClick={
+                onHighlightPlayer
+                  ? () =>
+                      onHighlightPlayer(highlightedPlayer === stat.player ? null : stat.player)
+                  : undefined
+              }
+            />
+            <TypeCountLabel
+              typeCounts={stat.typeCounts}
+              isMale={isMalePlayer(stat.player, males)}
+            />
+          </h3>
+          <div className="space-y-4">
+            <CountBars
+              title={isTeamMode ? "페어" : "페어 상대"}
+              entries={partnerEntriesList[index]}
+              maxCount={maxPartner}
+            />
+            <CountBars
+              title={isTeamMode ? "상대" : "상대 팀원"}
+              entries={opponentEntriesList[index]}
+              maxCount={maxOpponent}
+            />
+          </div>
+        </article>
+      ))}
     </div>
   );
 }
