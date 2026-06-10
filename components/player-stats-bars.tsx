@@ -5,6 +5,35 @@ interface PlayerStatsBarsProps {
   stats: PlayerStat[];
   mode?: ScheduleMode;
   teamInfo?: TeamScheduleInfo;
+  highlightedPlayer?: string | null;
+  onHighlightPlayer?: (player: string | null) => void;
+}
+
+function PlayerNameButton({
+  name,
+  active,
+  onClick,
+}: {
+  name: string;
+  active: boolean;
+  onClick?: () => void;
+}) {
+  if (!onClick) {
+    return <span className="text-sm font-semibold">{name}</span>;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`text-left text-sm font-semibold underline-offset-2 hover:underline ${
+        active ? "text-[var(--primary-text)] underline" : "text-[var(--text)]"
+      }`}
+      title="내 경기 하이라이트"
+    >
+      {name}
+    </button>
+  );
 }
 
 function TypeCountLabel({ typeCounts }: { typeCounts: Record<MatchType, number> }) {
@@ -75,7 +104,13 @@ function maxEntryCount(entriesList: [string, number][][]): number {
   return Math.max(...values, 1);
 }
 
-export function PlayerStatsBars({ stats, mode = "free", teamInfo }: PlayerStatsBarsProps) {
+export function PlayerStatsBars({
+  stats,
+  mode = "free",
+  teamInfo,
+  highlightedPlayer = null,
+  onHighlightPlayer,
+}: PlayerStatsBarsProps) {
   if (!stats.length) {
     return <p className="text-sm text-[var(--muted)]">참가자가 없습니다.</p>;
   }
@@ -110,7 +145,18 @@ export function PlayerStatsBars({ stats, mode = "free", teamInfo }: PlayerStatsB
             return (
               <div key={`total-${stat.player}`} className="flex items-center gap-2">
                 <div className="flex min-w-[7rem] shrink-0 flex-wrap items-baseline gap-x-1">
-                  <span className="text-sm font-semibold">{stat.player}</span>
+                  <PlayerNameButton
+                    name={stat.player}
+                    active={highlightedPlayer === stat.player}
+                    onClick={
+                      onHighlightPlayer
+                        ? () =>
+                            onHighlightPlayer(
+                              highlightedPlayer === stat.player ? null : stat.player
+                            )
+                        : undefined
+                    }
+                  />
                   <TypeCountLabel typeCounts={stat.typeCounts} />
                 </div>
                 <div className="relative h-6 flex-1 overflow-hidden rounded bg-[#eef2f8]">
@@ -140,7 +186,16 @@ export function PlayerStatsBars({ stats, mode = "free", teamInfo }: PlayerStatsB
             className="rounded-lg border border-[var(--line)] bg-white p-3"
           >
             <h3 className="mb-3 flex flex-wrap items-baseline gap-x-1 text-sm font-bold">
-              <span>{stat.player}</span>
+              <PlayerNameButton
+                name={stat.player}
+                active={highlightedPlayer === stat.player}
+                onClick={
+                  onHighlightPlayer
+                    ? () =>
+                        onHighlightPlayer(highlightedPlayer === stat.player ? null : stat.player)
+                    : undefined
+                }
+              />
               <TypeCountLabel typeCounts={stat.typeCounts} />
             </h3>
             <div className="space-y-4">

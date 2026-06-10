@@ -14,6 +14,7 @@ import {
 } from "@/lib/export-image";
 import { FeedbackButton } from "@/components/feedback-form";
 import { NumberStepper } from "@/components/number-stepper";
+import { PlayerHighlightChips } from "@/components/player-highlight-chips";
 import { PlayerStatsBars } from "@/components/player-stats-bars";
 import { PlayerStatsPrint } from "@/components/player-stats-print";
 import { ScheduleMatchView } from "@/components/schedule-match-view";
@@ -24,7 +25,9 @@ import {
   parseInputFromSearchParams,
   resizeNames,
 } from "@/lib/parse-schedule-input";
+import { formatMaxCourtsHint } from "@/lib/court-capacity";
 import { buildScheduleShareUrl, shareScheduleLink } from "@/lib/share-link";
+import { getMatchHighlightClass } from "@/lib/match-highlight";
 import { getFilterChipClass } from "@/lib/match-theme";
 import { trackEvent } from "@/lib/track-event";
 import type { CourtFilter, GeneratedSchedule, MatchType, ScheduleInput, ScheduleMode } from "@/lib/types";
@@ -54,6 +57,7 @@ export function TournamentGenerator() {
   const [seed, setSeed] = useState(Date.now());
   const [generated, setGenerated] = useState<GeneratedSchedule | null>(null);
   const [courtFilter, setCourtFilter] = useState<CourtFilter>("ALL");
+  const [highlightedPlayer, setHighlightedPlayer] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isExcelExporting, setIsExcelExporting] = useState(false);
@@ -70,6 +74,7 @@ export function TournamentGenerator() {
     setInput(nextInput);
     setSeed(nextSeed);
     setCourtFilter("ALL");
+    setHighlightedPlayer(null);
     setGenerated(generateSchedule(nextInput, nextSeed));
   }, []);
 
@@ -290,8 +295,23 @@ export function TournamentGenerator() {
 
   const handleModeChange = (mode: ScheduleMode) => {
     setInput((prev) => ({ ...prev, mode }));
+    setHighlightedPlayer(null);
     setGenerated(null);
   };
+
+  const handleHighlightPlayer = (player: string | null) => {
+    setHighlightedPlayer(player);
+    if (player) trackEvent("내경기 하이라이트", { player });
+  };
+
+  const highlightPlayers = useMemo(
+    () => generated?.playerStats.map((s) => s.player) ?? [],
+    [generated?.playerStats]
+  );
+
+  const highlightActive = !!highlightedPlayer && !isExporting;
+
+  const maxCourtsHint = formatMaxCourtsHint(input);
 
   const matchCount = generated?.schedule.filter((m) => !m.empty).length ?? 0;
   const teamSummary =
@@ -450,6 +470,9 @@ export function TournamentGenerator() {
               />
             </label>
           </div>
+          {maxCourtsHint && (
+            <p className="col-span-full text-sm text-amber-800">{maxCourtsHint}</p>
+          )}
 
           <fieldset className="col-span-full rounded-lg border border-[var(--line)] px-3 py-2.5">
             <legend className="px-1 text-[var(--muted)]">경기 유형</legend>
@@ -518,21 +541,26 @@ export function TournamentGenerator() {
       {generated && (
         <div ref={exportRef} className="screen-only">
           <section className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
-            <h2 className="mb-1 text-[1.1rem] font-semibold">생성된 대진표</h2>
-            {teamSummary && (
-              <p className="mb-3 text-sm font-medium text-[var(--text)]">{teamSummary}</p>
-            )}
-            <div className="export-exclude mb-3 flex flex-wrap gap-1.5">
-              {courtFilterOptions.map(({ value, label }) => (
-                <button
-                  key={String(value)}
-                  type="button"
-                  onClick={() => setCourtFilter(value)}
-                  className={`rounded-full border px-3 py-1.5 text-[0.86rem] ${getFilterChipClass(courtFilter === value)}`}
-                >
-                  {label}
-                </button>
-              ))}
+            <h2 className="mb-3 text-[1.1rem] font-semibold">생성된 대진표</h2>
+            <PlayerHighlightChips
+              players={highlightPlayers}
+              selectedPlayer={highlightedPlayer}
+              onSelect={handleHighlightPlayer}
+            />
+            <div className="export-exclude mb-3">
+              <p className="mb-1.5 text-xs font-semibold text-[var(--muted)]">코트 보기</p>
+              <div className="flex flex-wrap gap-1.5">
+                {courtFilterOptions.map(({ value, label }) => (
+                  <button
+                    key={String(value)}
+                    type="button"
+                    onClick={() => setCourtFilter(value)}
+                    className={`rounded-full border px-3 py-1.5 text-[0.86rem] ${getFilterChipClass(courtFilter === value)}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="hidden overflow-x-auto md:block">
@@ -561,7 +589,11 @@ export function TournamentGenerator() {
                           const match = list.find((x) => x.court === court);
                           return (
                             <td key={court} className="p-2 align-middle">
-                              <ScheduleMatchView match={match} teamInfo={generated.teamInfo} />
+                              <div
+                                className={`p-1 transition-opacity ${getMatchHighlightClass(match, highlightedPlayer, highlightActive)}`}
+                              >
+                                <ScheduleMatchView match={match} teamInfo={generated.teamInfo} />
+                              </div>
                             </td>
                           );
                         })}
@@ -577,7 +609,7 @@ export function TournamentGenerator() {
                 return (
                   <article
                     key={`${item.time}-${item.court}`}
-                    className="rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm leading-snug"
+                    className={`rounded-lg border border-[var(--line)] bg-white px-3 py-2 text-sm leading-snug transition-opacity ${getMatchHighlightClass(item, highlightedPlayer, highlightActive)}`}
                   >
                     {item.empty ? (
                       <p className="m-0 text-[var(--muted)]">
@@ -603,12 +635,15 @@ export function TournamentGenerator() {
           <section className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
             <h2 className="mb-2 text-[1.1rem] font-semibold">참가자별 페어/상대 통계</h2>
             <p className="mb-3 text-sm text-[var(--muted)]">
-              각 참가자의 총 경기수, 페어 횟수, 상대 만남 횟수를 막대 그래프로 표시합니다.
+              각 참가자의 총 경기수, 페어 횟수, 상대 만남 횟수를 막대 그래프로 표시합니다. 이름을
+              누르면 해당 참가자의 경기만 대진표에서 강조됩니다.
             </p>
             <PlayerStatsBars
               stats={generated.playerStats}
               mode={generated.mode}
               teamInfo={generated.teamInfo}
+              highlightedPlayer={highlightedPlayer}
+              onHighlightPlayer={handleHighlightPlayer}
             />
           </section>
         </div>

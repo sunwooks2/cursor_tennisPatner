@@ -67,7 +67,7 @@ function FreeMatchLine({ match }: { match: ScheduleMatch }) {
 
 export function ScheduleMatchView({ match, inline = false, teamInfo }: ScheduleMatchViewProps) {
   if (!match || match.empty) {
-    return <span className="text-sm text-[var(--muted)]">-</span>;
+    return <span className="text-sm text-[var(--muted)]">배정 불가</span>;
   }
 
   const teamDisplay = teamInfo ? parseTeamMatchDisplay(match, teamInfo) : null;

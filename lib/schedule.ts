@@ -1,8 +1,12 @@
 import {
   buildPlayers,
+  createSlotBusy,
+  excludeBusyPlayers,
   incrementNestedCount,
+  isMatchSlotAvailable,
   makeRng,
   makeTimeSlots,
+  occupySlotPlayers,
   pairKey,
   parseTypeLabel,
   shuffledCopy,
@@ -40,12 +44,13 @@ function makeMatch(
   males: string[],
   females: string[],
   state: ScheduleState,
-  rand: RandFn
+  rand: RandFn,
+  slotBusy: ReadonlySet<string>
 ): MatchCandidate | null {
   const needed =
     type === "MD" ? (["M", "M", "M", "M"] as const) : type === "WD" ? (["F", "F", "F", "F"] as const) : (["M", "M", "F", "F"] as const);
-  const malePool = shuffledCopy(males, rand);
-  const femalePool = shuffledCopy(females, rand);
+  const malePool = shuffledCopy(excludeBusyPlayers(males, slotBusy), rand);
+  const femalePool = shuffledCopy(excludeBusyPlayers(females, slotBusy), rand);
   const selectedM: string[] = [];
   const selectedF: string[] = [];
 
@@ -149,14 +154,21 @@ export function generateFreeSchedule(input: ScheduleInput, seed: number): Genera
   [...males, ...females].forEach((p) => state.playCount.set(p, 0));
 
   const schedule: ScheduleMatch[] = [];
+  const enforceSlotUnique = input.courtCount >= 2;
+
   for (const time of slots) {
+    const slotBusy = enforceSlotUnique ? createSlotBusy() : null;
+
     for (let court = 1; court <= input.courtCount; court += 1) {
       const candidates: MatchCandidate[] = [];
       const typeRotation = shuffledCopy(input.types, rand);
+      const slotBusyForMatch = slotBusy ?? new Set<string>();
       for (const type of typeRotation) {
-        for (let i = 0; i < 20; i += 1) {
-          const match = makeMatch(type, males, females, state, rand);
-          if (match) candidates.push(match);
+        for (let i = 0; i < 30; i += 1) {
+          const match = makeMatch(type, males, females, state, rand, slotBusyForMatch);
+          if (match && isMatchSlotAvailable(match.players, slotBusyForMatch)) {
+            candidates.push(match);
+          }
         }
       }
       if (candidates.length === 0) {
@@ -166,6 +178,7 @@ export function generateFreeSchedule(input: ScheduleInput, seed: number): Genera
       candidates.sort((a, b) => a.score - b.score);
       const winner = candidates[0];
       commitMatch(winner, state);
+      if (slotBusy) occupySlotPlayers(slotBusy, winner.players);
       schedule.push({
         time,
         court,

@@ -70,3 +70,23 @@ export function incrementNestedCount(
   const inner = map.get(from)!;
   inner.set(to, (inner.get(to) || 0) + 1);
 }
+
+/** 같은 타임(코트 2개 이상)에 이미 배정된 선수 */
+export type SlotBusyPlayers = Set<string>;
+
+export function createSlotBusy(): SlotBusyPlayers {
+  return new Set();
+}
+
+export function isMatchSlotAvailable(players: string[], slotBusy: ReadonlySet<string>): boolean {
+  return !players.some((p) => slotBusy.has(p));
+}
+
+export function occupySlotPlayers(slotBusy: SlotBusyPlayers, players: string[]): void {
+  for (const p of players) slotBusy.add(p);
+}
+
+export function excludeBusyPlayers(players: string[], slotBusy: ReadonlySet<string>): string[] {
+  if (slotBusy.size === 0) return players;
+  return players.filter((p) => !slotBusy.has(p));
+}

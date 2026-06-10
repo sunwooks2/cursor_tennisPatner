@@ -1,8 +1,12 @@
 import {
   buildPlayers,
+  createSlotBusy,
+  excludeBusyPlayers,
   incrementNestedCount,
+  isMatchSlotAvailable,
   makeRng,
   makeTimeSlots,
+  occupySlotPlayers,
   pairKey,
   shuffledCopy,
   type RandFn,
@@ -50,28 +54,29 @@ function makeTeamMatch(
   teamBMales: string[],
   teamBFemales: string[],
   state: ScheduleState,
-  rand: RandFn
+  rand: RandFn,
+  slotBusy: ReadonlySet<string>
 ): MatchCandidate | null {
   let teamA: [string, string];
   let teamB: [string, string];
 
   if (type === "MD") {
-    const aMales = pickDistinct(shuffledCopy(teamAMales, rand), 2);
-    const bMales = pickDistinct(shuffledCopy(teamBMales, rand), 2);
+    const aMales = pickDistinct(shuffledCopy(excludeBusyPlayers(teamAMales, slotBusy), rand), 2);
+    const bMales = pickDistinct(shuffledCopy(excludeBusyPlayers(teamBMales, slotBusy), rand), 2);
     if (!aMales || !bMales) return null;
     teamA = [aMales[0], aMales[1]];
     teamB = [bMales[0], bMales[1]];
   } else if (type === "WD") {
-    const aFemales = pickDistinct(shuffledCopy(teamAFemales, rand), 2);
-    const bFemales = pickDistinct(shuffledCopy(teamBFemales, rand), 2);
+    const aFemales = pickDistinct(shuffledCopy(excludeBusyPlayers(teamAFemales, slotBusy), rand), 2);
+    const bFemales = pickDistinct(shuffledCopy(excludeBusyPlayers(teamBFemales, slotBusy), rand), 2);
     if (!aFemales || !bFemales) return null;
     teamA = [aFemales[0], aFemales[1]];
     teamB = [bFemales[0], bFemales[1]];
   } else {
-    const aMales = shuffledCopy(teamAMales, rand);
-    const aFemales = shuffledCopy(teamAFemales, rand);
-    const bMales = shuffledCopy(teamBMales, rand);
-    const bFemales = shuffledCopy(teamBFemales, rand);
+    const aMales = shuffledCopy(excludeBusyPlayers(teamAMales, slotBusy), rand);
+    const aFemales = shuffledCopy(excludeBusyPlayers(teamAFemales, slotBusy), rand);
+    const bMales = shuffledCopy(excludeBusyPlayers(teamBMales, slotBusy), rand);
+    const bFemales = shuffledCopy(excludeBusyPlayers(teamBFemales, slotBusy), rand);
     if (!aMales[0] || !aFemales[0] || !bMales[0] || !bFemales[0]) return null;
     teamA = [aMales[0], aFemales[0]];
     teamB = [bMales[0], bFemales[0]];
@@ -208,12 +213,17 @@ export function generateTeamSchedule(input: ScheduleInput, seed: number): Genera
   allPlayers.forEach((p) => state.playCount.set(p, 0));
 
   const schedule: ScheduleMatch[] = [];
+  const enforceSlotUnique = input.courtCount >= 2;
+
   for (const time of slots) {
+    const slotBusy = enforceSlotUnique ? createSlotBusy() : null;
+
     for (let court = 1; court <= input.courtCount; court += 1) {
       const candidates: MatchCandidate[] = [];
       const typeRotation = shuffledCopy(input.types, rand);
+      const slotBusyForMatch = slotBusy ?? new Set<string>();
       for (const type of typeRotation) {
-        for (let i = 0; i < 20; i += 1) {
+        for (let i = 0; i < 30; i += 1) {
           const match = makeTeamMatch(
             type,
             teamAMales,
@@ -221,9 +231,12 @@ export function generateTeamSchedule(input: ScheduleInput, seed: number): Genera
             teamBMales,
             teamBFemales,
             state,
-            rand
+            rand,
+            slotBusyForMatch
           );
-          if (match) candidates.push(match);
+          if (match && isMatchSlotAvailable(match.players, slotBusyForMatch)) {
+            candidates.push(match);
+          }
         }
       }
       if (candidates.length === 0) {
@@ -233,6 +246,7 @@ export function generateTeamSchedule(input: ScheduleInput, seed: number): Genera
       candidates.sort((a, b) => a.score - b.score);
       const winner = candidates[0];
       commitMatch(winner, state);
+      if (slotBusy) occupySlotPlayers(slotBusy, winner.players);
       schedule.push({
         time,
         court,
