@@ -339,20 +339,62 @@ export function TournamentGenerator() {
         </div>
         <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-3">
           {input.mode === "free" ? (
-            <>
-              <NumberStepper
-                label="남성 인원수"
-                value={input.maleCount}
-                min={0}
-                onChange={handleMaleCountChange}
-              />
-              <NumberStepper
-                label="여성 인원수"
-                value={input.femaleCount}
-                min={0}
-                onChange={handleFemaleCountChange}
-              />
-            </>
+            <div className="col-span-full grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                <NumberStepper
+                  label="남성 인원수"
+                  value={input.maleCount}
+                  min={0}
+                  onChange={handleMaleCountChange}
+                />
+                {input.maleCount > 0 && (
+                  <div className="rounded-lg border border-[var(--line)] bg-[#f8fafc] px-2.5 py-2">
+                    <p className="mb-2 text-xs text-[var(--muted)]">남성 이름 (미입력 시 남1, 남2...)</p>
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                      {Array.from({ length: input.maleCount }, (_, i) => (
+                        <label key={`male-name-${i}`} className="min-w-0">
+                          <span className="mb-1 block text-xs text-[var(--muted)]">남{i + 1}</span>
+                          <input
+                            type="text"
+                            value={input.maleNames[i] ?? ""}
+                            placeholder={`남${i + 1}`}
+                            onChange={(e) => handleMaleNameChange(i, e.target.value)}
+                            className="w-full rounded-lg border border-[var(--line)] px-2.5 py-2 text-sm"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <NumberStepper
+                  label="여성 인원수"
+                  value={input.femaleCount}
+                  min={0}
+                  onChange={handleFemaleCountChange}
+                />
+                {input.femaleCount > 0 && (
+                  <div className="rounded-lg border border-[var(--line)] bg-[#f8fafc] px-2.5 py-2">
+                    <p className="mb-2 text-xs text-[var(--muted)]">여성 이름 (미입력 시 여1, 여2...)</p>
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                      {Array.from({ length: input.femaleCount }, (_, i) => (
+                        <label key={`female-name-${i}`} className="min-w-0">
+                          <span className="mb-1 block text-xs text-[var(--muted)]">여{i + 1}</span>
+                          <input
+                            type="text"
+                            value={input.femaleNames[i] ?? ""}
+                            placeholder={`여${i + 1}`}
+                            onChange={(e) => handleFemaleNameChange(i, e.target.value)}
+                            className="w-full rounded-lg border border-[var(--line)] px-2.5 py-2 text-sm"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           ) : (
             <div className="col-span-full space-y-3">
               <TeamRosterForm
@@ -369,82 +411,46 @@ export function TournamentGenerator() {
               </p>
             </div>
           )}
-          <NumberStepper
-            label="코트 수"
-            value={input.courtCount}
-            min={1}
-            onChange={(courtCount) => setInput((prev) => ({ ...prev, courtCount }))}
-          />
-          {input.mode === "free" && input.maleCount > 0 && (
-            <div className="col-span-full rounded-lg border border-[var(--line)] bg-[#f8fafc] px-3 py-2.5">
-              <p className="mb-2 text-sm font-medium">남성 이름 (미입력 시 남1, 남2...)</p>
-              <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                {Array.from({ length: input.maleCount }, (_, i) => (
-                  <label key={`male-name-${i}`}>
-                    <span className="mb-1 block text-xs text-[var(--muted)]">남{i + 1}</span>
-                    <input
-                      type="text"
-                      value={input.maleNames[i] ?? ""}
-                      placeholder={`남${i + 1}`}
-                      onChange={(e) => handleMaleNameChange(i, e.target.value)}
-                      className="w-full rounded-lg border border-[var(--line)] px-2.5 py-2 text-sm"
-                    />
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-          {input.mode === "free" && input.femaleCount > 0 && (
-            <div className="col-span-full rounded-lg border border-[var(--line)] bg-[#f8fafc] px-3 py-2.5">
-              <p className="mb-2 text-sm font-medium">여성 이름 (미입력 시 여1, 여2...)</p>
-              <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                {Array.from({ length: input.femaleCount }, (_, i) => (
-                  <label key={`female-name-${i}`}>
-                    <span className="mb-1 block text-xs text-[var(--muted)]">여{i + 1}</span>
-                    <input
-                      type="text"
-                      value={input.femaleNames[i] ?? ""}
-                      placeholder={`여${i + 1}`}
-                      onChange={(e) => handleFemaleNameChange(i, e.target.value)}
-                      className="w-full rounded-lg border border-[var(--line)] px-2.5 py-2 text-sm"
-                    />
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-          <label>
-            <span className="mb-1.5 block text-[0.92rem]">시작시간</span>
-            <input
-              type="time"
-              required
-              value={input.startTime}
-              onChange={(e) => handleStartTimeChange(e.target.value)}
-              className="w-full rounded-lg border border-[var(--line)] px-2.5 py-2.5"
+          <div className="col-span-full grid grid-cols-2 gap-2 md:grid-cols-4">
+            <NumberStepper
+              label="코트 수"
+              value={input.courtCount}
+              min={1}
+              onChange={(courtCount) => setInput((prev) => ({ ...prev, courtCount }))}
             />
-          </label>
-          <label>
-            <span className="mb-1.5 block text-[0.92rem]">종료시간</span>
-            <input
-              type="time"
-              required
-              value={input.endTime}
-              onChange={(e) => setInput((prev) => ({ ...prev, endTime: e.target.value }))}
-              className="w-full rounded-lg border border-[var(--line)] px-2.5 py-2.5"
-            />
-          </label>
-          <label>
-            <span className="mb-1.5 block text-[0.92rem]">경기시간(분)</span>
-            <input
-              type="number"
-              min={10}
-              step={5}
-              required
-              value={input.matchMinutes}
-              onChange={(e) => setInput((prev) => ({ ...prev, matchMinutes: Number(e.target.value) }))}
-              className="w-full rounded-lg border border-[var(--line)] px-2.5 py-2.5"
-            />
-          </label>
+            <label>
+              <span className="mb-1.5 block text-[0.92rem]">시작시간</span>
+              <input
+                type="time"
+                required
+                value={input.startTime}
+                onChange={(e) => handleStartTimeChange(e.target.value)}
+                className="w-full rounded-lg border border-[var(--line)] px-2.5 py-2.5"
+              />
+            </label>
+            <label>
+              <span className="mb-1.5 block text-[0.92rem]">종료시간</span>
+              <input
+                type="time"
+                required
+                value={input.endTime}
+                onChange={(e) => setInput((prev) => ({ ...prev, endTime: e.target.value }))}
+                className="w-full rounded-lg border border-[var(--line)] px-2.5 py-2.5"
+              />
+            </label>
+            <label>
+              <span className="mb-1.5 block text-[0.92rem]">경기시간(분)</span>
+              <input
+                type="number"
+                min={10}
+                step={5}
+                required
+                value={input.matchMinutes}
+                onChange={(e) => setInput((prev) => ({ ...prev, matchMinutes: Number(e.target.value) }))}
+                className="w-full rounded-lg border border-[var(--line)] px-2.5 py-2.5"
+              />
+            </label>
+          </div>
 
           <fieldset className="col-span-full rounded-lg border border-[var(--line)] px-3 py-2.5">
             <legend className="px-1 text-[var(--muted)]">경기 유형</legend>
