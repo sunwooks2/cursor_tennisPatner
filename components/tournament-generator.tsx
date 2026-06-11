@@ -35,7 +35,7 @@ import {
 } from "@/lib/parse-schedule-input";
 import { formatMaxCourtsHint } from "@/lib/court-capacity";
 import { buildScheduleShareUrl, shareScheduleLink } from "@/lib/share-link";
-import { getMatchHighlightClass, isRestSlotForPlayer } from "@/lib/match-highlight";
+import { isRestSlotForPlayer } from "@/lib/match-highlight";
 import { RestTimeView } from "@/components/rest-time-view";
 import { getFilterChipClass } from "@/lib/match-theme";
 import {
@@ -727,10 +727,10 @@ export function TournamentGenerator() {
                     if (isRest) {
                       return (
                         <tr key={time} className="border-b border-[var(--line)] bg-[#f8fafc]">
-                          <th className="p-2 text-left text-sm font-semibold text-[var(--muted)]">
+                          <th className="schedule-desktop-time p-2 text-left text-sm font-semibold text-[var(--muted)]">
                             {time}
                           </th>
-                          <td colSpan={visibleCourts.length} className="p-2 align-middle">
+                          <td colSpan={visibleCourts.length} className="schedule-desktop-cell p-2 align-middle">
                             <RestTimeView />
                           </td>
                         </tr>
@@ -739,15 +739,17 @@ export function TournamentGenerator() {
 
                     return (
                       <tr key={time} className="border-b border-[var(--line)]">
-                        <th className="p-2 text-left text-sm font-semibold">{time}</th>
+                        <th className="schedule-desktop-time p-2 text-left text-sm font-semibold">{time}</th>
                         {visibleCourts.map((court) => {
                           const match = list.find((x) => x.court === court);
                           return (
-                            <td key={court} className="p-2 align-middle">
-                              <div
-                                className={`p-1 transition-opacity ${getMatchHighlightClass(match, highlightedPlayer, highlightActive)}`}
-                              >
-                                <ScheduleMatchView match={match} teamInfo={generated.teamInfo} />
+                            <td key={court} className="schedule-desktop-cell p-2 align-middle">
+                              <div className="p-1">
+                                <ScheduleMatchView
+                                  match={match}
+                                  teamInfo={generated.teamInfo}
+                                  highlightedPlayer={highlightActive ? highlightedPlayer : null}
+                                />
                               </div>
                             </td>
                           );

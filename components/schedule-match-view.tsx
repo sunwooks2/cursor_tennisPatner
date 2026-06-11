@@ -1,3 +1,4 @@
+import { HighlightablePlayerName } from "@/components/highlightable-player-name";
 import { parseTypeLabel } from "@/lib/schedule-common";
 import { formatMatchText } from "@/lib/schedule";
 import { getMatchTypeBadgeClass } from "@/lib/match-theme";
@@ -8,6 +9,7 @@ interface ScheduleMatchViewProps {
   match?: ScheduleMatch;
   inline?: boolean;
   teamInfo?: TeamScheduleInfo;
+  highlightedPlayer?: string | null;
 }
 
 function MatchTypeBadge({ type, label }: { type: MatchType; label: string }) {
@@ -23,49 +25,82 @@ function MatchTypeBadge({ type, label }: { type: MatchType; label: string }) {
 function TeamSide({
   teamName,
   players,
+  highlightedPlayer,
 }: {
   teamName: string;
   players: [string, string];
+  highlightedPlayer?: string | null;
 }) {
   return (
     <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
       <span className="font-semibold text-[var(--text)]">{teamName}</span>
       <span className="text-[var(--muted)]">
-        {players[0]}·{players[1]}
+        <HighlightablePlayerName name={players[0]} highlightedPlayer={highlightedPlayer} />
+        <span aria-hidden>·</span>
+        <HighlightablePlayerName name={players[1]} highlightedPlayer={highlightedPlayer} />
       </span>
     </span>
   );
 }
 
-function TeamMatchLine({ display }: { display: NonNullable<ReturnType<typeof parseTeamMatchDisplay>> }) {
+function TeamMatchLine({
+  display,
+  highlightedPlayer,
+}: {
+  display: NonNullable<ReturnType<typeof parseTeamMatchDisplay>>;
+  highlightedPlayer?: string | null;
+}) {
   return (
     <p className="m-0 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[0.8rem] leading-snug">
       <MatchTypeBadge type={display.type} label={display.typeLabel} />
-      <TeamSide teamName={display.sideA.teamName} players={display.sideA.players} />
+      <TeamSide
+        teamName={display.sideA.teamName}
+        players={display.sideA.players}
+        highlightedPlayer={highlightedPlayer}
+      />
       <span className="shrink-0 text-[0.62rem] font-semibold text-[var(--muted)]">VS</span>
-      <TeamSide teamName={display.sideB.teamName} players={display.sideB.players} />
+      <TeamSide
+        teamName={display.sideB.teamName}
+        players={display.sideB.players}
+        highlightedPlayer={highlightedPlayer}
+      />
     </p>
   );
 }
 
-function FreeMatchLine({ match }: { match: ScheduleMatch }) {
+function FreeMatchLine({
+  match,
+  highlightedPlayer,
+}: {
+  match: ScheduleMatch;
+  highlightedPlayer?: string | null;
+}) {
   if (!match.teamA || !match.teamB || !match.type) return null;
 
   return (
     <p className="m-0 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[0.8rem] leading-snug">
       <MatchTypeBadge type={match.type} label={parseTypeLabel(match.type)} />
       <span className="text-[var(--text)]">
-        {match.teamA[0]}·{match.teamA[1]}
+        <HighlightablePlayerName name={match.teamA[0]} highlightedPlayer={highlightedPlayer} />
+        <span aria-hidden>·</span>
+        <HighlightablePlayerName name={match.teamA[1]} highlightedPlayer={highlightedPlayer} />
       </span>
       <span className="shrink-0 text-[0.62rem] font-semibold text-[var(--muted)]">VS</span>
       <span className="text-[var(--text)]">
-        {match.teamB[0]}·{match.teamB[1]}
+        <HighlightablePlayerName name={match.teamB[0]} highlightedPlayer={highlightedPlayer} />
+        <span aria-hidden>·</span>
+        <HighlightablePlayerName name={match.teamB[1]} highlightedPlayer={highlightedPlayer} />
       </span>
     </p>
   );
 }
 
-export function ScheduleMatchView({ match, inline = false, teamInfo }: ScheduleMatchViewProps) {
+export function ScheduleMatchView({
+  match,
+  inline = false,
+  teamInfo,
+  highlightedPlayer = null,
+}: ScheduleMatchViewProps) {
   if (!match || match.empty) {
     return <span className="text-sm text-[var(--muted)]">배정 불가</span>;
   }
@@ -73,11 +108,11 @@ export function ScheduleMatchView({ match, inline = false, teamInfo }: ScheduleM
   const teamDisplay = teamInfo ? parseTeamMatchDisplay(match, teamInfo) : null;
 
   if (teamDisplay) {
-    return <TeamMatchLine display={teamDisplay} />;
+    return <TeamMatchLine display={teamDisplay} highlightedPlayer={highlightedPlayer} />;
   }
 
   if (match.type) {
-    return <FreeMatchLine match={match} />;
+    return <FreeMatchLine match={match} highlightedPlayer={highlightedPlayer} />;
   }
 
   const text = formatMatchText(match);

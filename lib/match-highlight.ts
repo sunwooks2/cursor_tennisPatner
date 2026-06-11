@@ -25,17 +25,3 @@ export function isRestSlotForPlayer(
   return !slotIncludesPlayer(matches, player, visibleCourts);
 }
 
-export function getMatchHighlightClass(
-  match: ScheduleMatch | undefined,
-  highlightedPlayer: string | null,
-  active: boolean
-): string {
-  if (!active || !highlightedPlayer) return "";
-
-  if (matchIncludesPlayer(match, highlightedPlayer)) {
-    return "rounded-lg bg-[var(--highlight)] ring-1 ring-[var(--primary-border)]";
-  }
-
-  if (!match || match.empty) return "opacity-40";
-  return "opacity-35";
-}

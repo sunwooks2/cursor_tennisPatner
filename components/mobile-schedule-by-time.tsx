@@ -1,8 +1,4 @@
-import {
-  getMatchHighlightClass,
-  isRestSlotForPlayer,
-  matchIncludesPlayer,
-} from "@/lib/match-highlight";
+import { isRestSlotForPlayer, matchIncludesPlayer } from "@/lib/match-highlight";
 import { RestTimeView } from "@/components/rest-time-view";
 import { ScheduleMatchView } from "@/components/schedule-match-view";
 import type { ScheduleMatch, TeamScheduleInfo } from "@/lib/types";
@@ -58,33 +54,33 @@ export function MobileScheduleByTime({
           }`}
         >
           <div
-            className={`flex w-[3.25rem] shrink-0 flex-col items-center justify-center border-r px-1 py-2.5 text-center text-xs font-semibold leading-tight ${
+            className={`schedule-time-col ${
               isRest
-                ? "border-[var(--line)] bg-[#f3f6fa] text-[var(--muted)]"
-                : "border-[var(--line)] bg-[#f8fafc] text-[var(--text)]"
+                ? "bg-[#f3f6fa] text-[var(--muted)]"
+                : "bg-[#f8fafc] text-[var(--text)]"
             }`}
           >
             <span>{time}</span>
-            {isRest && <span className="mt-0.5 text-[0.65rem] font-medium">휴식</span>}
           </div>
           {isRest ? (
-            <div className="flex min-w-0 flex-1 items-center px-3 py-2.5">
+            <div className="schedule-mobile-row min-w-0 flex-1">
               <RestTimeView />
             </div>
           ) : (
             <div className="min-w-0 flex-1 divide-y divide-[var(--line)]">
               {rows.map(({ court, match }) => (
-                <div
-                  key={`${time}-${court}`}
-                  className={`flex gap-2.5 px-3 py-2.5 transition-opacity ${getMatchHighlightClass(match, highlightedPlayer, highlightActive)}`}
-                >
+                <div key={`${time}-${court}`} className="schedule-mobile-row">
                   {showCourtLabel && (
-                    <span className="w-10 shrink-0 pt-0.5 text-xs font-semibold text-[var(--muted)]">
+                    <span className="w-10 shrink-0 text-xs font-semibold text-[var(--muted)]">
                       코트{court}
                     </span>
                   )}
                   <div className="min-w-0 flex-1">
-                    <ScheduleMatchView match={match} teamInfo={teamInfo} />
+                    <ScheduleMatchView
+                      match={match}
+                      teamInfo={teamInfo}
+                      highlightedPlayer={highlightActive ? highlightedPlayer : null}
+                    />
                   </div>
                 </div>
               ))}
