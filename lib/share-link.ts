@@ -12,7 +12,11 @@ function appendTeamRosterParams(q: URLSearchParams, prefix: string, roster: Sche
   }
 }
 
-export function buildScheduleShareUrl(input: ScheduleInput, seed: number): string {
+export function buildScheduleSearchParams(
+  input: ScheduleInput,
+  seed: number,
+  eventId?: string | null
+): URLSearchParams {
   const q = new URLSearchParams({
     c: String(input.courtCount),
     s: input.startTime,
@@ -21,6 +25,10 @@ export function buildScheduleShareUrl(input: ScheduleInput, seed: number): strin
     t: input.types.join(","),
     seed: String(seed),
   });
+
+  if (eventId) {
+    q.set("eid", eventId);
+  }
 
   if (input.mode === "team") {
     q.set("mode", "team");
@@ -37,7 +45,27 @@ export function buildScheduleShareUrl(input: ScheduleInput, seed: number): strin
     }
   }
 
-  return `${window.location.origin}?${q.toString()}`;
+  return q;
+}
+
+export function buildScheduleShareUrl(
+  input: ScheduleInput,
+  seed: number,
+  eventId?: string | null
+): string {
+  return `${window.location.origin}?${buildScheduleSearchParams(input, seed, eventId).toString()}`;
+}
+
+export function syncScheduleUrl(input: ScheduleInput, seed: number, eventId?: string | null): void {
+  if (typeof window === "undefined") return;
+  const query = buildScheduleSearchParams(input, seed, eventId).toString();
+  const next = `${window.location.pathname}?${query}`;
+  window.history.replaceState(null, "", next);
+}
+
+export function parseEventIdFromSearchParams(params: URLSearchParams): string | null {
+  const eid = params.get("eid")?.trim();
+  return eid || null;
 }
 
 export type ShareResult = "shared" | "copied";

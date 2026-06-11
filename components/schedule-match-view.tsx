@@ -25,19 +25,29 @@ function MatchTypeBadge({ type, label }: { type: MatchType; label: string }) {
 function TeamSide({
   teamName,
   players,
+  playerKeys,
   highlightedPlayer,
 }: {
   teamName: string;
   players: [string, string];
+  playerKeys: [string, string];
   highlightedPlayer?: string | null;
 }) {
   return (
     <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
       <span className="font-semibold text-[var(--text)]">{teamName}</span>
       <span className="text-[var(--muted)]">
-        <HighlightablePlayerName name={players[0]} highlightedPlayer={highlightedPlayer} />
+        <HighlightablePlayerName
+          name={players[0]}
+          highlightKey={playerKeys[0]}
+          highlightedPlayer={highlightedPlayer}
+        />
         <span aria-hidden>·</span>
-        <HighlightablePlayerName name={players[1]} highlightedPlayer={highlightedPlayer} />
+        <HighlightablePlayerName
+          name={players[1]}
+          highlightKey={playerKeys[1]}
+          highlightedPlayer={highlightedPlayer}
+        />
       </span>
     </span>
   );
@@ -56,12 +66,14 @@ function TeamMatchLine({
       <TeamSide
         teamName={display.sideA.teamName}
         players={display.sideA.players}
+        playerKeys={display.sideA.playerKeys}
         highlightedPlayer={highlightedPlayer}
       />
       <span className="shrink-0 text-[0.62rem] font-semibold text-[var(--muted)]">VS</span>
       <TeamSide
         teamName={display.sideB.teamName}
         players={display.sideB.players}
+        playerKeys={display.sideB.playerKeys}
         highlightedPlayer={highlightedPlayer}
       />
     </p>

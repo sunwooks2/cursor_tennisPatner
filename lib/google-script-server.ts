@@ -1,10 +1,18 @@
+import type { MatchScores } from "@/lib/match-scores";
+
 export function getGoogleScriptUrl(): string | null {
   return process.env.GOOGLE_SCRIPT_URL ?? null;
 }
 
+export type GoogleScriptResult = {
+  ok: boolean;
+  error?: string;
+  scores?: MatchScores;
+};
+
 export async function postToGoogleScript(
   payload: Record<string, unknown>
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<GoogleScriptResult> {
   const scriptUrl = getGoogleScriptUrl();
   if (!scriptUrl) {
     return { ok: false, error: "missing_url" };
@@ -23,16 +31,16 @@ export async function postToGoogleScript(
   });
 
   const text = await res.text();
-  let result: { ok?: boolean } = { ok: res.ok };
+  let result: GoogleScriptResult = { ok: res.ok };
   try {
-    result = JSON.parse(text) as { ok?: boolean };
+    result = JSON.parse(text) as GoogleScriptResult;
   } catch {
     // Apps Script may return non-JSON on success in some setups
   }
 
   if (!res.ok || result.ok === false) {
-    return { ok: false, error: "script_failed" };
+    return { ok: false, error: result.error ?? "script_failed" };
   }
 
-  return { ok: true };
+  return result;
 }

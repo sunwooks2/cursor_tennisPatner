@@ -24,6 +24,7 @@ export function formatPlayerShortName(player: string, teamName: string): string 
 export type TeamMatchSide = {
   teamName: string;
   players: [string, string];
+  playerKeys: [string, string];
 };
 
 export type TeamMatchDisplay = {
@@ -50,10 +51,12 @@ export function parseTeamMatchDisplay(
     sideA: {
       teamName: teamAName,
       players: [formatPlayerShortName(a1, teamAName), formatPlayerShortName(a2, teamAName)],
+      playerKeys: [a1, a2],
     },
     sideB: {
       teamName: teamBName,
       players: [formatPlayerShortName(b1, teamBName), formatPlayerShortName(b2, teamBName)],
+      playerKeys: [b1, b2],
     },
   };
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   generateSchedule,
@@ -13,17 +14,19 @@ import {
   isMobileDevice,
 } from "@/lib/export-image";
 import { FeedbackButton } from "@/components/feedback-form";
+import { ScheduleExportActions } from "@/components/schedule-export-actions";
 import { GenerationToast } from "@/components/generation-toast";
 import { MatchTypeIcon } from "@/components/match-type-icon";
 import { TennisBallIcon } from "@/components/tennis-ball-icon";
 import { NumberStepper } from "@/components/number-stepper";
 import { PlayerNameInputRow } from "@/components/player-name-input-row";
 import { PlayerMatchCountSummary } from "@/components/player-match-count-summary";
+import { PlayerScoreRanking } from "@/components/player-score-ranking";
+import { TeamScoreSummary } from "@/components/team-score-summary";
 import { MobileScheduleByTime } from "@/components/mobile-schedule-by-time";
 import { PlayerHighlightChips } from "@/components/player-highlight-chips";
 import { PlayerStatsBars } from "@/components/player-stats-bars";
 import { PlayerStatsPrint } from "@/components/player-stats-print";
-import { ScheduleMatchView } from "@/components/schedule-match-view";
 import { TeamRosterForm } from "@/components/team-roster-form";
 import {
   applyTeamRosterDefaultsForTypes,
@@ -34,7 +37,21 @@ import {
   resizeNames,
 } from "@/lib/parse-schedule-input";
 import { formatMaxCourtsHint } from "@/lib/court-capacity";
-import { buildScheduleShareUrl, shareScheduleLink } from "@/lib/share-link";
+import { MatchScoreSheet, type ScoreEditorTarget } from "@/components/match-score-sheet";
+import { getScoreForSlot, ScorableMatchCell } from "@/components/scorable-match-cell";
+import { createEventId } from "@/lib/match-scores";
+import {
+  areAllMatchesScored,
+  computePlayerScoreTotals,
+  hasRecordedScores,
+} from "@/lib/player-score-totals";
+import { computeTeamScoreTotals } from "@/lib/team-score-totals";
+import { useMatchScores } from "@/lib/use-match-scores";
+import {
+  buildScheduleShareUrl,
+  parseEventIdFromSearchParams,
+  shareScheduleLink,
+} from "@/lib/share-link";
 import { isRestSlotForPlayer } from "@/lib/match-highlight";
 import { RestTimeView } from "@/components/rest-time-view";
 import { getFilterChipClass } from "@/lib/match-theme";
@@ -80,6 +97,8 @@ export function TournamentGenerator() {
   const [resultsPulse, setResultsPulse] = useState(false);
   const [generateFlash, setGenerateFlash] = useState<GenerationFeedbackType | null>(null);
   const [durationHours, setDurationHours] = useState<DurationHours | null>(2);
+  const [eventId, setEventId] = useState<string | null>(null);
+  const [scoreEditor, setScoreEditor] = useState<ScoreEditorTarget | null>(null);
   const actionBtnRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
   const printExportRef = useRef<HTMLDivElement>(null);
@@ -102,17 +121,25 @@ export function TournamentGenerator() {
   );
 
   const runGenerate = useCallback(
-    (nextInput: ScheduleInput, nextSeed: number, feedback?: GenerationFeedbackType) => {
+    (
+      nextInput: ScheduleInput,
+      nextSeed: number,
+      feedback?: GenerationFeedbackType,
+      nextEventId?: string | null
+    ) => {
       const error = validateInput(nextInput);
       if (error) {
         alert(error);
         return;
       }
       const result = generateSchedule(nextInput, nextSeed);
+      const eid = nextEventId ?? createEventId();
       setInput(nextInput);
       setSeed(nextSeed);
+      setEventId(eid);
       setCourtFilter("ALL");
       setHighlightedPlayer(null);
+      setScoreEditor(null);
       setGenerated(result);
       if (feedback) {
         triggerGenerationFeedback(feedback, result);
@@ -121,13 +148,20 @@ export function TournamentGenerator() {
     [triggerGenerationFeedback]
   );
 
+  const { scores: matchScores, saving: scoreSaving, save: saveScore, clear: clearScore } =
+    useMatchScores(eventId);
+
   useEffect(() => {
     if (initialized) return;
     const { input: parsedInput, seed: parsedSeed } = parseInputFromSearchParams(searchParams);
+    const parsedEventId = parseEventIdFromSearchParams(searchParams);
     setInput(parsedInput);
     setDurationHours(inferDurationHours(parsedInput.startTime, parsedInput.endTime));
+    if (parsedEventId) {
+      setEventId(parsedEventId);
+    }
     if (searchParams.has("seed") && !validateInput(parsedInput)) {
-      runGenerate(parsedInput, parsedSeed);
+      runGenerate(parsedInput, parsedSeed, undefined, parsedEventId);
     }
     setInitialized(true);
   }, [initialized, runGenerate, searchParams]);
@@ -206,7 +240,11 @@ export function TournamentGenerator() {
     }
 
     trackEvent("공유");
-    const url = buildScheduleShareUrl(input, seed);
+    if (!eventId) {
+      alert("이벤트 ID가 없습니다. 대진을 다시 생성해주세요.");
+      return;
+    }
+    const url = buildScheduleShareUrl(input, seed, eventId);
     try {
       const result = await shareScheduleLink(url);
       if (result === "shared") {
@@ -402,6 +440,23 @@ export function TournamentGenerator() {
     [generated?.playerStats]
   );
 
+  const playerScoreRankings = useMemo(() => {
+    if (!generated || !hasRecordedScores(matchScores)) return [];
+    return computePlayerScoreTotals(generated.schedule, matchScores);
+  }, [generated, matchScores]);
+
+  const teamScoreTotals = useMemo(() => {
+    if (!generated?.teamInfo || !hasRecordedScores(matchScores)) return [];
+    return computeTeamScoreTotals(generated.schedule, matchScores, generated.teamInfo);
+  }, [generated, matchScores]);
+
+  const allMatchesScored = useMemo(() => {
+    if (!generated) return false;
+    return areAllMatchesScored(generated.schedule, matchScores);
+  }, [generated, matchScores]);
+
+  const isScheduleViewMode = searchParams.has("seed");
+
   const highlightActive = !!highlightedPlayer && !isExporting;
 
   const needsMale = input.types.includes("MD") || input.types.includes("MXD");
@@ -438,6 +493,7 @@ export function TournamentGenerator() {
         </div>
       </header>
 
+      {!isScheduleViewMode && (
       <section className="no-print mb-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
         <div className="mode-segmented mb-3">
           {MODE_OPTIONS.map(({ value, label }) => (
@@ -622,36 +678,19 @@ export function TournamentGenerator() {
             >
               다시 생성
             </button>
-            <button type="button" onClick={handleShare} className="btn btn-ghost">
-              대진공유
-            </button>
-            <button
-              type="button"
-              onClick={handleImageDownload}
-              disabled={isExporting || isExcelExporting || isPrintExporting}
-              className="btn btn-ghost"
-            >
-              {isExporting ? "이미지저장 중" : "이미지저장"}
-            </button>
-            <button
-              type="button"
-              onClick={handleExcelDownload}
-              disabled={isExporting || isExcelExporting || isPrintExporting}
-              className="btn btn-ghost"
-            >
-              {isExcelExporting ? "엑셀저장 중" : "엑셀저장"}
-            </button>
-            <button
-              type="button"
-              onClick={handlePrint}
-              disabled={isExporting || isExcelExporting || isPrintExporting}
-              className="btn btn-ghost"
-            >
-              {isPrintExporting ? "인쇄 중" : "인쇄"}
-            </button>
+            <ScheduleExportActions
+              onShare={handleShare}
+              onImageDownload={handleImageDownload}
+              onExcelDownload={handleExcelDownload}
+              onPrint={handlePrint}
+              isExporting={isExporting}
+              isExcelExporting={isExcelExporting}
+              isPrintExporting={isPrintExporting}
+            />
           </div>
         </form>
       </section>
+      )}
 
       {generationToast && (
         <GenerationToast
@@ -659,6 +698,28 @@ export function TournamentGenerator() {
           message={generationToast.message}
           onClose={() => setGenerationToast(null)}
         />
+      )}
+
+      {isScheduleViewMode && generated && (
+        <section className="schedule-view-toolbar no-print mb-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
+          <ScheduleExportActions
+            className="schedule-view-toolbar__exports"
+            onShare={handleShare}
+            onImageDownload={handleImageDownload}
+            onExcelDownload={handleExcelDownload}
+            onPrint={handlePrint}
+            isExporting={isExporting}
+            isExcelExporting={isExcelExporting}
+            isPrintExporting={isPrintExporting}
+          />
+          <Link
+            href="/"
+            className="btn btn-primary schedule-view-toolbar__create"
+            onClick={() => trackEvent("나도 생성하기")}
+          >
+            나도 생성하기
+          </Link>
+        </section>
       )}
 
       {generated && (
@@ -677,7 +738,8 @@ export function TournamentGenerator() {
           </section>
 
           <section className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
-            <h2 className="mb-3 text-[1.1rem] font-semibold">생성된 대진표</h2>
+            <h2 className="mb-1 text-[1.1rem] font-semibold">생성된 대진표</h2>
+            <p className="mb-3 text-xs text-[var(--muted)]">경기를 탭하면 점수를 입력할 수 있습니다.</p>
             <PlayerHighlightChips
               players={highlightPlayers}
               selectedPlayer={highlightedPlayer}
@@ -744,13 +806,16 @@ export function TournamentGenerator() {
                           const match = list.find((x) => x.court === court);
                           return (
                             <td key={court} className="schedule-desktop-cell p-2 align-middle">
-                              <div className="p-1">
-                                <ScheduleMatchView
-                                  match={match}
-                                  teamInfo={generated.teamInfo}
-                                  highlightedPlayer={highlightActive ? highlightedPlayer : null}
-                                />
-                              </div>
+                              <ScorableMatchCell
+                                className="p-1"
+                                time={time}
+                                court={court}
+                                match={match}
+                                teamInfo={generated.teamInfo}
+                                highlightedPlayer={highlightActive ? highlightedPlayer : null}
+                                score={getScoreForSlot(matchScores, time, court)}
+                                onEditScore={setScoreEditor}
+                              />
                             </td>
                           );
                         })}
@@ -768,9 +833,25 @@ export function TournamentGenerator() {
                 teamInfo={generated.teamInfo}
                 highlightedPlayer={highlightedPlayer}
                 highlightActive={highlightActive}
+                matchScores={matchScores}
+                onEditScore={setScoreEditor}
               />
             </div>
           </section>
+
+          {playerScoreRankings.length > 0 && (
+            <section className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
+              <p className="mb-2 text-xs font-semibold text-[var(--muted)]">점수 합산</p>
+              {teamScoreTotals.length > 0 && (
+                <TeamScoreSummary teams={teamScoreTotals} allMatchesComplete={allMatchesScored} />
+              )}
+              <PlayerScoreRanking
+                rankings={playerScoreRankings}
+                highlightedPlayer={highlightedPlayer}
+                onHighlightPlayer={handleHighlightPlayer}
+              />
+            </section>
+          )}
 
           <section className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
             <h2 className="mb-3 text-[1.1rem] font-semibold">참가자별 페어/상대 통계</h2>
@@ -893,6 +974,24 @@ export function TournamentGenerator() {
           </div>
         </div>
       )}
+
+      <MatchScoreSheet
+        target={scoreEditor}
+        teamInfo={generated?.teamInfo}
+        initialScore={
+          scoreEditor ? getScoreForSlot(matchScores, scoreEditor.time, scoreEditor.court) : undefined
+        }
+        saving={scoreSaving}
+        onClose={() => setScoreEditor(null)}
+        onSave={async (a, b) => {
+          if (!scoreEditor) return;
+          await saveScore(scoreEditor.time, scoreEditor.court, a, b);
+        }}
+        onClear={async () => {
+          if (!scoreEditor) return;
+          await clearScore(scoreEditor.time, scoreEditor.court);
+        }}
+      />
     </main>
   );
 }
