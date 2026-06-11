@@ -727,15 +727,17 @@ export function TournamentGenerator() {
           ref={exportRef}
           className={`screen-only ${resultsPulse ? "generation-results-pulse" : ""}`}
         >
-          <section className="mb-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
-            <p className="mb-2 text-xs font-semibold text-[var(--muted)]">경기 횟수</p>
-            <PlayerMatchCountSummary
-              stats={generated.playerStats}
-              males={generated.males}
-              highlightedPlayer={highlightedPlayer}
-              onHighlightPlayer={handleHighlightPlayer}
-            />
-          </section>
+          {!isScheduleViewMode && (
+            <section className="mb-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
+              <p className="mb-2 text-xs font-semibold text-[var(--muted)]">경기 횟수</p>
+              <PlayerMatchCountSummary
+                stats={generated.playerStats}
+                males={generated.males}
+                highlightedPlayer={highlightedPlayer}
+                onHighlightPlayer={handleHighlightPlayer}
+              />
+            </section>
+          )}
 
           <section className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
             <h2 className="mb-1 text-[1.1rem] font-semibold">생성된 대진표</h2>
@@ -847,6 +849,18 @@ export function TournamentGenerator() {
               )}
               <PlayerScoreRanking
                 rankings={playerScoreRankings}
+                highlightedPlayer={highlightedPlayer}
+                onHighlightPlayer={handleHighlightPlayer}
+              />
+            </section>
+          )}
+
+          {isScheduleViewMode && (
+            <section className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
+              <p className="mb-2 text-xs font-semibold text-[var(--muted)]">경기 횟수</p>
+              <PlayerMatchCountSummary
+                stats={generated.playerStats}
+                males={generated.males}
                 highlightedPlayer={highlightedPlayer}
                 onHighlightPlayer={handleHighlightPlayer}
               />

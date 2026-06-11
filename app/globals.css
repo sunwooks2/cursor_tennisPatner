@@ -278,6 +278,15 @@ body {
   gap: 0.5rem;
 }
 
+.schedule-view-toolbar__exports {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.schedule-view-toolbar__exports .btn {
+  padding-inline: 0.25rem;
+  font-size: 0.72rem;
+}
+
 .schedule-view-toolbar__create {
   display: inline-flex;
   width: 100%;
@@ -303,6 +312,11 @@ body {
   .schedule-view-toolbar__exports {
     min-width: 0;
     flex: 1;
+  }
+
+  .schedule-view-toolbar__exports .btn {
+    padding-inline: 0.375rem;
+    font-size: 0.8125rem;
   }
 }
 
