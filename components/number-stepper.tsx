@@ -26,13 +26,13 @@ export function NumberStepper({ label, value, min, max, onChange }: NumberSteppe
   return (
     <label className="block min-w-0">
       <span className="mb-1.5 block text-[0.92rem]">{label}</span>
-      <div className="flex overflow-hidden rounded-lg border border-[var(--line)] bg-white">
+      <div className="stepper-control flex overflow-hidden rounded-xl border border-[var(--line)] bg-white">
         <button
           type="button"
           onClick={decrement}
           disabled={value <= min}
           aria-label={`${label} 감소`}
-          className="flex w-11 shrink-0 items-center justify-center border-r border-[var(--line)] text-lg font-semibold text-[var(--text)] transition-colors hover:bg-[#f4f7fb] disabled:cursor-not-allowed disabled:opacity-40"
+          className="stepper-btn flex w-11 shrink-0 items-center justify-center border-r border-[var(--line)] text-lg font-semibold"
         >
           −
         </button>
@@ -50,7 +50,7 @@ export function NumberStepper({ label, value, min, max, onChange }: NumberSteppe
           onClick={increment}
           disabled={max !== undefined && value >= max}
           aria-label={`${label} 증가`}
-          className="flex w-11 shrink-0 items-center justify-center border-l border-[var(--line)] text-lg font-semibold text-[var(--text)] transition-colors hover:bg-[#f4f7fb] disabled:cursor-not-allowed disabled:opacity-40"
+          className="stepper-btn flex w-11 shrink-0 items-center justify-center border-l border-[var(--line)] text-lg font-semibold"
         >
           +
         </button>

@@ -5,6 +5,25 @@ import { trackEvent } from "@/lib/track-event";
 
 const FEEDBACK_TYPES = ["버그", "개선", "기능 추가", "기타"] as const;
 
+function LightbulbIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M9 18h6" />
+      <path d="M10 22h4" />
+      <path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z" />
+    </svg>
+  );
+}
+
 interface FeedbackFormProps {
   open: boolean;
   onClose: () => void;
@@ -194,12 +213,12 @@ export function FeedbackButton() {
           trackEvent("개선제안");
           setOpen(true);
         }}
-        className="flex shrink-0 items-center gap-1 rounded-lg border border-[#1e3510] bg-[#2a4a18] px-2.5 py-1.5 text-xs font-semibold text-[var(--primary-soft)] shadow-sm shadow-[#2a4a18]/30 hover:bg-[#355a22]"
+        className="feedback-btn group flex shrink-0 items-center gap-1.5 rounded-full border border-[var(--line)] bg-white/90 px-3 py-1.5 text-xs font-medium text-[var(--muted)] backdrop-blur-sm"
       >
-        <span className="text-sm leading-none" aria-hidden>
-          💡
+        <span className="feedback-btn-icon flex h-5 w-5 items-center justify-center rounded-full bg-[var(--highlight)] text-[var(--primary-text)]">
+          <LightbulbIcon />
         </span>
-        <span>개선제안</span>
+        <span className="tracking-tight">개선제안</span>
       </button>
       <FeedbackForm open={open} onClose={() => setOpen(false)} />
     </>

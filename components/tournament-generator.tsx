@@ -365,27 +365,25 @@ export function TournamentGenerator() {
   return (
     <main className="mx-auto w-full max-w-[1120px] p-4">
       <header className="no-print mb-3">
-        <div className="flex items-start justify-between gap-3">
-          <h1 className="mb-0 flex min-w-0 items-center gap-1.5 text-[1.2rem] font-semibold text-[#4a6278]">
-            <TennisBallIcon className="text-[1.05rem]" />
-            <span>테니스 대진표 생성기</span>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="app-title mb-0 flex min-w-0 items-center gap-2">
+            <span className="app-title-icon">
+              <TennisBallIcon className="h-[1.35rem] w-[1.35rem]" />
+            </span>
+            <span className="app-title-text">테니스 대진표 생성기</span>
           </h1>
           <FeedbackButton />
         </div>
       </header>
 
       <section className="no-print mb-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
-        <div className="mb-3 flex gap-1.5">
+        <div className="mode-segmented mb-3">
           {MODE_OPTIONS.map(({ value, label }) => (
             <button
               key={value}
               type="button"
               onClick={() => handleModeChange(value)}
-              className={`rounded-lg border px-3 py-2 text-sm font-semibold ${
-                input.mode === value
-                  ? "border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)]"
-                  : "border-[var(--line)] bg-white"
-              }`}
+              className={`mode-segment ${input.mode === value ? "mode-segment--active" : ""}`}
             >
               {label}
             </button>
@@ -509,51 +507,48 @@ export function TournamentGenerator() {
             <p className="col-span-full text-sm text-amber-800">{maxCourtsHint}</p>
           )}
 
-          <fieldset className="col-span-full rounded-lg border border-[var(--line)] px-3 py-2.5">
-            <legend className="px-1 text-[var(--muted)]">경기 유형</legend>
-            {TYPE_OPTIONS.map(({ value, label }) => (
-              <label key={value} className="my-1.5 block">
-                <input
-                  type="checkbox"
-                  checked={input.types.includes(value)}
-                  onChange={() => toggleType(value)}
-                  className="mr-2"
-                />
-                {label}
-              </label>
-            ))}
-          </fieldset>
+          <div className="col-span-full">
+            <p className="mb-2 text-xs font-semibold text-[var(--muted)]">경기 유형</p>
+            <div className="type-chip-group">
+              {TYPE_OPTIONS.map(({ value, label }) => {
+                const active = input.types.includes(value);
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => toggleType(value)}
+                    className={`type-chip ${active ? "type-chip--active" : ""}`}
+                    aria-pressed={active}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-          <div className="col-span-full grid grid-cols-3 gap-1.5 sm:grid-cols-6">
+          <div className="action-btn-row col-span-full">
             <button
               type="submit"
-              className={`rounded-lg bg-[var(--primary)] px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap text-[var(--primary-foreground)] ${
-                generateFlash === "create" ? "generation-btn-flash" : ""
-              }`}
+              className={`btn btn-primary ${generateFlash === "create" ? "generation-btn-flash" : ""}`}
             >
               대진 생성
             </button>
             <button
               type="button"
               onClick={handleRegenerate}
-              className={`rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap ${
-                generateFlash === "regenerate" ? "generation-btn-flash" : ""
-              }`}
+              className={`btn btn-secondary ${generateFlash === "regenerate" ? "generation-btn-flash" : ""}`}
             >
               다시 생성
             </button>
-            <button
-              type="button"
-              onClick={handleShare}
-              className="rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap"
-            >
-              공유
+            <button type="button" onClick={handleShare} className="btn btn-ghost">
+              대진공유
             </button>
             <button
               type="button"
               onClick={handleImageDownload}
               disabled={isExporting || isExcelExporting || isPrintExporting}
-              className="rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap disabled:opacity-60"
+              className="btn btn-ghost"
             >
               {isExporting ? "이미지저장 중" : "이미지저장"}
             </button>
@@ -561,7 +556,7 @@ export function TournamentGenerator() {
               type="button"
               onClick={handleExcelDownload}
               disabled={isExporting || isExcelExporting || isPrintExporting}
-              className="rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap disabled:opacity-60"
+              className="btn btn-ghost"
             >
               {isExcelExporting ? "엑셀저장 중" : "엑셀저장"}
             </button>
@@ -569,7 +564,7 @@ export function TournamentGenerator() {
               type="button"
               onClick={handlePrint}
               disabled={isExporting || isExcelExporting || isPrintExporting}
-              className="rounded-lg border border-[var(--line)] bg-white px-1.5 py-2.5 text-sm font-semibold whitespace-nowrap disabled:opacity-60"
+              className="btn btn-ghost"
             >
               {isPrintExporting ? "인쇄 중" : "인쇄"}
             </button>
