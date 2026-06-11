@@ -186,6 +186,9 @@ body {
 }
 
 .type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
   border: 1px solid var(--line);
   border-radius: 9999px;
   padding: 0.4375rem 0.875rem;
@@ -296,6 +299,21 @@ body {
 .stepper-btn:disabled {
   cursor: not-allowed;
   opacity: 0.4;
+}
+
+.name-input-row-label {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.125rem;
+  height: 2.25rem;
+  border-radius: 0.375rem;
+  background: #eef2f8;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--muted);
 }
 
 .feedback-btn {

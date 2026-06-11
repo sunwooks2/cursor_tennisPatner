@@ -1,3 +1,4 @@
+import { typesNeedFemale, typesNeedMale } from "./match-type-gender";
 import type { ScheduleInput } from "./types";
 
 /**
@@ -7,9 +8,14 @@ import type { ScheduleInput } from "./types";
 export function getMaxCourtsPerSlot(input: ScheduleInput): number {
   if (input.courtCount < 2) return input.courtCount;
 
+  const needMale = typesNeedMale(input.types);
+  const needFemale = typesNeedFemale(input.types);
+
   if (input.mode === "team") {
-    const totalA = input.teamA.maleCount + input.teamA.femaleCount;
-    const totalB = input.teamB.maleCount + input.teamB.femaleCount;
+    const totalA =
+      (needMale ? input.teamA.maleCount : 0) + (needFemale ? input.teamA.femaleCount : 0);
+    const totalB =
+      (needMale ? input.teamB.maleCount : 0) + (needFemale ? input.teamB.femaleCount : 0);
     const total = totalA + totalB;
     return Math.max(
       1,
@@ -17,7 +23,7 @@ export function getMaxCourtsPerSlot(input: ScheduleInput): number {
     );
   }
 
-  const total = input.maleCount + input.femaleCount;
+  const total = (needMale ? input.maleCount : 0) + (needFemale ? input.femaleCount : 0);
   return Math.max(1, Math.floor(total / 4));
 }
 
@@ -26,12 +32,17 @@ export function formatMaxCourtsHint(input: ScheduleInput): string | null {
   const max = getMaxCourtsPerSlot(input);
   if (input.courtCount <= max) return null;
 
+  const needMale = typesNeedMale(input.types);
+  const needFemale = typesNeedFemale(input.types);
+
   if (input.mode === "team") {
-    const totalA = input.teamA.maleCount + input.teamA.femaleCount;
-    const totalB = input.teamB.maleCount + input.teamB.femaleCount;
+    const totalA =
+      (needMale ? input.teamA.maleCount : 0) + (needFemale ? input.teamA.femaleCount : 0);
+    const totalB =
+      (needMale ? input.teamB.maleCount : 0) + (needFemale ? input.teamB.femaleCount : 0);
     return `같은 타임에 한 선수는 한 코트만 배정됩니다. 현재 인원(팀A ${totalA}명·팀B ${totalB}명)으로는 타임당 최대 ${max}코트까지 가능해, 코트${max + 1}번 이후는 비게 됩니다.`;
   }
 
-  const total = input.maleCount + input.femaleCount;
+  const total = (needMale ? input.maleCount : 0) + (needFemale ? input.femaleCount : 0);
   return `같은 타임에 한 선수는 한 코트만 배정됩니다. 현재 ${total}명으로는 타임당 최대 ${max}코트까지 가능해, 코트${max + 1}번 이후는 비게 됩니다.`;
 }

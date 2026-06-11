@@ -13,6 +13,7 @@ import {
   toMinute,
   type RandFn,
 } from "./schedule-common";
+import { typesNeedFemale, typesNeedMale } from "./match-type-gender";
 import { generateTeamSchedule, validateTeamInput } from "./schedule-team";
 import { formatTeamMatchText } from "./team-stats";
 import type {
@@ -139,8 +140,12 @@ function commitMatch(match: MatchCandidate, state: ScheduleState): void {
 
 export function generateFreeSchedule(input: ScheduleInput, seed: number): GeneratedSchedule {
   const rand = makeRng(seed);
-  const males = buildPlayers("남", input.maleCount, input.maleNames);
-  const females = buildPlayers("여", input.femaleCount, input.femaleNames);
+  const males = typesNeedMale(input.types)
+    ? buildPlayers("남", input.maleCount, input.maleNames)
+    : [];
+  const females = typesNeedFemale(input.types)
+    ? buildPlayers("여", input.femaleCount, input.femaleNames)
+    : [];
   const slots = makeTimeSlots(input.startTime, input.endTime, input.matchMinutes);
   const totalMatches = slots.length * input.courtCount;
 

@@ -16,10 +16,13 @@ export const DEFAULT_TEAM_B: TeamRoster = {
   femaleNames: [],
 };
 
+export const DEFAULT_FREE_DOUBLES_COUNT = 4;
+export const DEFAULT_TEAM_DOUBLES_PER_SIDE = 2;
+
 export const DEFAULT_INPUT: ScheduleInput = {
   mode: "free",
   maleCount: 0,
-  femaleCount: 0,
+  femaleCount: DEFAULT_FREE_DOUBLES_COUNT,
   maleNames: [],
   femaleNames: [],
   teamA: { ...DEFAULT_TEAM_A },

@@ -14,8 +14,10 @@ import {
 } from "@/lib/export-image";
 import { FeedbackButton } from "@/components/feedback-form";
 import { GenerationToast } from "@/components/generation-toast";
+import { MatchTypeIcon } from "@/components/match-type-icon";
 import { TennisBallIcon } from "@/components/tennis-ball-icon";
 import { NumberStepper } from "@/components/number-stepper";
+import { PlayerNameInputRow } from "@/components/player-name-input-row";
 import { PlayerMatchCountSummary } from "@/components/player-match-count-summary";
 import { MobileScheduleByTime } from "@/components/mobile-schedule-by-time";
 import { PlayerHighlightChips } from "@/components/player-highlight-chips";
@@ -24,7 +26,9 @@ import { PlayerStatsPrint } from "@/components/player-stats-print";
 import { ScheduleMatchView } from "@/components/schedule-match-view";
 import { TeamRosterForm } from "@/components/team-roster-form";
 import {
+  DEFAULT_FREE_DOUBLES_COUNT,
   DEFAULT_INPUT,
+  DEFAULT_TEAM_DOUBLES_PER_SIDE,
   formatTeamSummary,
   parseInputFromSearchParams,
   resizeNames,
@@ -39,20 +43,19 @@ import {
   type GenerationFeedbackType,
 } from "@/lib/generation-feedback";
 import { trackEvent } from "@/lib/track-event";
+import { typesNeedFemale, typesNeedMale } from "@/lib/match-type-gender";
+import {
+  addHoursToTime,
+  DURATION_HOUR_OPTIONS,
+  inferDurationHours,
+  type DurationHours,
+} from "@/lib/schedule-duration";
 import type { CourtFilter, GeneratedSchedule, MatchType, ScheduleInput, ScheduleMode } from "@/lib/types";
 
-function addHoursToTime(time: string, hours: number): string {
-  const [h, m] = time.split(":").map(Number);
-  const total = h * 60 + m + hours * 60;
-  const nh = Math.floor(total / 60) % 24;
-  const nm = total % 60;
-  return `${String(nh).padStart(2, "0")}:${String(nm).padStart(2, "0")}`;
-}
-
 const TYPE_OPTIONS: { value: MatchType; label: string }[] = [
-  { value: "MD", label: "남자복식 (MD)" },
-  { value: "WD", label: "여자복식 (WD)" },
-  { value: "MXD", label: "혼합복식 (MXD)" },
+  { value: "MD", label: "남자복식" },
+  { value: "WD", label: "여자복식" },
+  { value: "MXD", label: "혼합복식" },
 ];
 
 const MODE_OPTIONS: { value: ScheduleMode; label: string }[] = [
@@ -76,6 +79,7 @@ export function TournamentGenerator() {
   );
   const [resultsPulse, setResultsPulse] = useState(false);
   const [generateFlash, setGenerateFlash] = useState<GenerationFeedbackType | null>(null);
+  const [durationHours, setDurationHours] = useState<DurationHours | null>(2);
   const exportRef = useRef<HTMLDivElement>(null);
   const printExportRef = useRef<HTMLDivElement>(null);
 
@@ -120,7 +124,8 @@ export function TournamentGenerator() {
     if (initialized) return;
     const { input: parsedInput, seed: parsedSeed } = parseInputFromSearchParams(searchParams);
     setInput(parsedInput);
-    if (!validateInput(parsedInput)) {
+    setDurationHours(inferDurationHours(parsedInput.startTime, parsedInput.endTime));
+    if (searchParams.has("seed") && !validateInput(parsedInput)) {
       runGenerate(parsedInput, parsedSeed);
     }
     setInitialized(true);
@@ -282,7 +287,66 @@ export function TournamentGenerator() {
     setInput((prev) => {
       const exists = prev.types.includes(type);
       const types = exists ? prev.types.filter((t) => t !== type) : [...prev.types, type];
-      return { ...prev, types };
+      const needMale = typesNeedMale(types);
+      const needFemale = typesNeedFemale(types);
+      const adding = !exists;
+
+      if (prev.mode === "free") {
+        let maleCount = needMale ? prev.maleCount : 0;
+        let femaleCount = needFemale ? prev.femaleCount : 0;
+        let maleNames = needMale ? prev.maleNames : [];
+        let femaleNames = needFemale ? prev.femaleNames : [];
+
+        if (adding && type === "MD" && maleCount === 0) {
+          maleCount = DEFAULT_FREE_DOUBLES_COUNT;
+          maleNames = resizeNames(maleNames, maleCount);
+        }
+        if (adding && type === "WD" && femaleCount === 0) {
+          femaleCount = DEFAULT_FREE_DOUBLES_COUNT;
+          femaleNames = resizeNames(femaleNames, femaleCount);
+        }
+
+        return { ...prev, types, maleCount, maleNames, femaleCount, femaleNames };
+      }
+
+      let teamA = { ...prev.teamA };
+      let teamB = { ...prev.teamB };
+
+      if (!needMale) {
+        teamA = { ...teamA, maleCount: 0, maleNames: [] };
+        teamB = { ...teamB, maleCount: 0, maleNames: [] };
+      }
+      if (!needFemale) {
+        teamA = { ...teamA, femaleCount: 0, femaleNames: [] };
+        teamB = { ...teamB, femaleCount: 0, femaleNames: [] };
+      }
+
+      if (adding && type === "MD" && teamA.maleCount === 0 && teamB.maleCount === 0) {
+        teamA = {
+          ...teamA,
+          maleCount: DEFAULT_TEAM_DOUBLES_PER_SIDE,
+          maleNames: resizeNames(teamA.maleNames, DEFAULT_TEAM_DOUBLES_PER_SIDE),
+        };
+        teamB = {
+          ...teamB,
+          maleCount: DEFAULT_TEAM_DOUBLES_PER_SIDE,
+          maleNames: resizeNames(teamB.maleNames, DEFAULT_TEAM_DOUBLES_PER_SIDE),
+        };
+      }
+      if (adding && type === "WD" && teamA.femaleCount === 0 && teamB.femaleCount === 0) {
+        teamA = {
+          ...teamA,
+          femaleCount: DEFAULT_TEAM_DOUBLES_PER_SIDE,
+          femaleNames: resizeNames(teamA.femaleNames, DEFAULT_TEAM_DOUBLES_PER_SIDE),
+        };
+        teamB = {
+          ...teamB,
+          femaleCount: DEFAULT_TEAM_DOUBLES_PER_SIDE,
+          femaleNames: resizeNames(teamB.femaleNames, DEFAULT_TEAM_DOUBLES_PER_SIDE),
+        };
+      }
+
+      return { ...prev, types, teamA, teamB };
     });
   };
 
@@ -290,8 +354,21 @@ export function TournamentGenerator() {
     setInput((prev) => ({
       ...prev,
       startTime,
-      endTime: addHoursToTime(startTime, 2),
+      endTime: durationHours ? addHoursToTime(startTime, durationHours) : prev.endTime,
     }));
+  };
+
+  const handleDurationHoursChange = (hours: DurationHours) => {
+    setDurationHours(hours);
+    setInput((prev) => ({
+      ...prev,
+      endTime: addHoursToTime(prev.startTime, hours),
+    }));
+  };
+
+  const handleEndTimeChange = (endTime: string) => {
+    setDurationHours(inferDurationHours(input.startTime, endTime));
+    setInput((prev) => ({ ...prev, endTime }));
   };
 
   const handleMaleCountChange = (maleCount: number) => {
@@ -344,6 +421,8 @@ export function TournamentGenerator() {
 
   const highlightActive = !!highlightedPlayer && !isExporting;
 
+  const needsMale = input.types.includes("MD") || input.types.includes("MXD");
+  const needsFemale = input.types.includes("WD") || input.types.includes("MXD");
   const maxCourtsHint = formatMaxCourtsHint(input);
 
   const matchCount = generated?.schedule.filter((m) => !m.empty).length ?? 0;
@@ -389,80 +468,43 @@ export function TournamentGenerator() {
             </button>
           ))}
         </div>
+        <div className="mb-3">
+          <p className="mb-2 text-xs font-semibold text-[var(--muted)]">경기 유형</p>
+          <div className="type-chip-group">
+            {TYPE_OPTIONS.map(({ value, label }) => {
+              const active = input.types.includes(value);
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => toggleType(value)}
+                  className={`type-chip ${active ? "type-chip--active" : ""}`}
+                  aria-pressed={active}
+                >
+                  <span>{label}</span>
+                  <MatchTypeIcon type={value} />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div className="mb-3">
+          <p className="mb-1.5 text-xs font-semibold text-[var(--muted)]">진행시간</p>
+          <div className="type-chip-group">
+            {DURATION_HOUR_OPTIONS.map((hours) => (
+              <button
+                key={hours}
+                type="button"
+                onClick={() => handleDurationHoursChange(hours)}
+                className={`type-chip ${durationHours === hours ? "type-chip--active" : ""}`}
+                aria-pressed={durationHours === hours}
+              >
+                {hours}시간
+              </button>
+            ))}
+          </div>
+        </div>
         <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-3">
-          {input.mode === "free" ? (
-            <div className="col-span-full grid grid-cols-2 gap-2">
-              <div className="flex flex-col gap-4">
-                <NumberStepper
-                  label="남성 인원수"
-                  value={input.maleCount}
-                  min={0}
-                  onChange={handleMaleCountChange}
-                />
-                {input.maleCount > 0 && (
-                  <div className="rounded-lg border border-[var(--line)] bg-[#f8fafc] px-2.5 py-2">
-                    <p className="mb-2 text-xs text-[var(--muted)]">이름(미입력시 남1..)</p>
-                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                      {Array.from({ length: input.maleCount }, (_, i) => (
-                        <label key={`male-name-${i}`} className="min-w-0">
-                          <span className="mb-1 block text-xs text-[var(--muted)]">남{i + 1}</span>
-                          <input
-                            type="text"
-                            value={input.maleNames[i] ?? ""}
-                            placeholder={`남${i + 1}`}
-                            onChange={(e) => handleMaleNameChange(i, e.target.value)}
-                            className="w-full rounded-lg border border-[var(--line)] px-2.5 py-2 text-sm"
-                          />
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="flex flex-col gap-4">
-                <NumberStepper
-                  label="여성 인원수"
-                  value={input.femaleCount}
-                  min={0}
-                  onChange={handleFemaleCountChange}
-                />
-                {input.femaleCount > 0 && (
-                  <div className="rounded-lg border border-[var(--line)] bg-[#f8fafc] px-2.5 py-2">
-                    <p className="mb-2 text-xs text-[var(--muted)]">이름(미입력시 여1..)</p>
-                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                      {Array.from({ length: input.femaleCount }, (_, i) => (
-                        <label key={`female-name-${i}`} className="min-w-0">
-                          <span className="mb-1 block text-xs text-[var(--muted)]">여{i + 1}</span>
-                          <input
-                            type="text"
-                            value={input.femaleNames[i] ?? ""}
-                            placeholder={`여${i + 1}`}
-                            onChange={(e) => handleFemaleNameChange(i, e.target.value)}
-                            className="w-full rounded-lg border border-[var(--line)] px-2.5 py-2 text-sm"
-                          />
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="col-span-full space-y-3">
-              <TeamRosterForm
-                roster={input.teamA}
-                onChange={(teamA) => setInput((prev) => ({ ...prev, teamA }))}
-              />
-              <TeamRosterForm
-                roster={input.teamB}
-                onChange={(teamB) => setInput((prev) => ({ ...prev, teamB }))}
-              />
-              <p className="text-sm text-[var(--muted)]">
-                팀 인원이 다르면 인원이 적은 팀 선수에게 경기가 더 많이 배정될 수 있습니다. 가능한 범위에서
-                개인별 경기 수를 균등하게 맞춥니다.
-              </p>
-            </div>
-          )}
           <div className="col-span-full grid grid-cols-2 gap-2 md:grid-cols-4 [&>*]:min-w-0">
             <NumberStepper
               label="코트 수"
@@ -470,18 +512,6 @@ export function TournamentGenerator() {
               min={1}
               onChange={(courtCount) => setInput((prev) => ({ ...prev, courtCount }))}
             />
-            <label className="block min-w-0">
-              <span className="mb-1.5 block text-[0.92rem]">경기시간(분)</span>
-              <input
-                type="number"
-                min={10}
-                step={5}
-                required
-                value={input.matchMinutes}
-                onChange={(e) => setInput((prev) => ({ ...prev, matchMinutes: Number(e.target.value) }))}
-                className="form-control-input w-full rounded-lg border border-[var(--line)] bg-white px-2 py-2.5 text-[0.92rem] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-              />
-            </label>
             <label className="block min-w-0">
               <span className="mb-1.5 block text-[0.92rem]">시작시간</span>
               <input
@@ -498,34 +528,91 @@ export function TournamentGenerator() {
                 type="time"
                 required
                 value={input.endTime}
-                onChange={(e) => setInput((prev) => ({ ...prev, endTime: e.target.value }))}
+                onChange={(e) => handleEndTimeChange(e.target.value)}
                 className="form-control-input w-full rounded-lg border border-[var(--line)] bg-white px-2 py-2.5 text-[0.92rem]"
+              />
+            </label>
+            <label className="block min-w-0">
+              <span className="mb-1.5 block text-[0.92rem]">경기시간(분)</span>
+              <input
+                type="number"
+                min={10}
+                step={5}
+                required
+                value={input.matchMinutes}
+                onChange={(e) => setInput((prev) => ({ ...prev, matchMinutes: Number(e.target.value) }))}
+                className="form-control-input w-full rounded-lg border border-[var(--line)] bg-white px-2 py-2.5 text-[0.92rem] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
             </label>
           </div>
           {maxCourtsHint && (
             <p className="col-span-full text-sm text-amber-800">{maxCourtsHint}</p>
           )}
-
-          <div className="col-span-full">
-            <p className="mb-2 text-xs font-semibold text-[var(--muted)]">경기 유형</p>
-            <div className="type-chip-group">
-              {TYPE_OPTIONS.map(({ value, label }) => {
-                const active = input.types.includes(value);
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => toggleType(value)}
-                    className={`type-chip ${active ? "type-chip--active" : ""}`}
-                    aria-pressed={active}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
+          {input.mode === "free" ? (
+            (needsMale || needsFemale) && (
+              <div className="col-span-full flex flex-col gap-2">
+                <div className="grid grid-cols-2 gap-2 md:grid-cols-4 [&>*]:min-w-0">
+                  {needsMale && (
+                    <NumberStepper
+                      label="남성 인원수"
+                      value={input.maleCount}
+                      min={0}
+                      onChange={handleMaleCountChange}
+                    />
+                  )}
+                  {needsFemale && (
+                    <NumberStepper
+                      label="여성 인원수"
+                      value={input.femaleCount}
+                      min={0}
+                      onChange={handleFemaleCountChange}
+                    />
+                  )}
+                </div>
+                {needsMale && (
+                  <PlayerNameInputRow
+                    genderLabel="남자"
+                    count={input.maleCount}
+                    names={input.maleNames}
+                    placeholderPrefix="남"
+                    keyPrefix="male-name"
+                    onNameChange={handleMaleNameChange}
+                    className="rounded-lg border border-[var(--line)] bg-[#f8fafc] px-2 py-2"
+                  />
+                )}
+                {needsFemale && (
+                  <PlayerNameInputRow
+                    genderLabel="여자"
+                    count={input.femaleCount}
+                    names={input.femaleNames}
+                    placeholderPrefix="여"
+                    keyPrefix="female-name"
+                    onNameChange={handleFemaleNameChange}
+                    className="rounded-lg border border-[var(--line)] bg-[#f8fafc] px-2 py-2"
+                  />
+                )}
+              </div>
+            )
+          ) : (
+            <div className="col-span-full space-y-3">
+              <TeamRosterForm
+                roster={input.teamA}
+                showMale={needsMale}
+                showFemale={needsFemale}
+                onChange={(teamA) => setInput((prev) => ({ ...prev, teamA }))}
+              />
+              <TeamRosterForm
+                roster={input.teamB}
+                showMale={needsMale}
+                showFemale={needsFemale}
+                onChange={(teamB) => setInput((prev) => ({ ...prev, teamB }))}
+              />
+              <p className="text-sm text-[var(--muted)]">
+                팀 인원이 다르면 인원이 적은 팀 선수에게 경기가 더 많이 배정될 수 있습니다. 가능한 범위에서
+                개인별 경기 수를 균등하게 맞춥니다.
+              </p>
             </div>
-          </div>
+          )}
 
           <div className="action-btn-row col-span-full">
             <button
