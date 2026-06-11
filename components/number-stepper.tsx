@@ -3,6 +3,7 @@ interface NumberStepperProps {
   value: number;
   min: number;
   max?: number;
+  highlighted?: boolean;
   onChange: (value: number) => void;
 }
 
@@ -13,7 +14,14 @@ function clamp(value: number, min: number, max?: number): number {
   return next;
 }
 
-export function NumberStepper({ label, value, min, max, onChange }: NumberStepperProps) {
+export function NumberStepper({
+  label,
+  value,
+  min,
+  max,
+  highlighted = false,
+  onChange,
+}: NumberStepperProps) {
   const decrement = () => onChange(clamp(value - 1, min, max));
   const increment = () => onChange(clamp(value + 1, min, max));
 
@@ -25,8 +33,18 @@ export function NumberStepper({ label, value, min, max, onChange }: NumberSteppe
 
   return (
     <label className="block min-w-0">
-      <span className="mb-1.5 block text-[0.92rem]">{label}</span>
-      <div className="stepper-control flex overflow-hidden rounded-xl border border-[var(--line)] bg-white">
+      <span
+        className={`stepper-label mb-1.5 block text-[0.92rem] ${
+          highlighted ? "stepper-label--highlight" : ""
+        }`.trim()}
+      >
+        {label}
+      </span>
+      <div
+        className={`stepper-control flex overflow-hidden rounded-xl border border-[var(--line)] bg-white ${
+          highlighted ? "stepper-control--highlight" : ""
+        }`.trim()}
+      >
         <button
           type="button"
           onClick={decrement}

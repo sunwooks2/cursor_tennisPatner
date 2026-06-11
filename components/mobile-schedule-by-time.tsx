@@ -22,6 +22,8 @@ export function MobileScheduleByTime({
   highlightedPlayer,
   highlightActive,
 }: MobileScheduleByTimeProps) {
+  const showCourtLabel = visibleCourts.length > 1;
+
   const timeCards = slots
     .map(([time, list]) => {
       if (highlightedPlayer && isRestSlotForPlayer(list, highlightedPlayer, visibleCourts)) {
@@ -51,34 +53,36 @@ export function MobileScheduleByTime({
       {timeCards.map(({ time, isRest, rows }) => (
         <article
           key={time}
-          className={`overflow-hidden rounded-lg border bg-white ${
+          className={`flex overflow-hidden rounded-lg border bg-white ${
             isRest ? "border-dashed border-[var(--line)] bg-[#f8fafc]" : "border-[var(--line)]"
           }`}
         >
-          <header
-            className={`border-b px-3 py-2 text-sm font-semibold ${
+          <div
+            className={`flex w-[3.25rem] shrink-0 flex-col items-center justify-center border-r px-1 py-2.5 text-center text-xs font-semibold leading-tight ${
               isRest
                 ? "border-[var(--line)] bg-[#f3f6fa] text-[var(--muted)]"
                 : "border-[var(--line)] bg-[#f8fafc] text-[var(--text)]"
             }`}
           >
-            {time}
-            {isRest && <span className="ml-1.5 text-xs font-medium">· 휴식</span>}
-          </header>
+            <span>{time}</span>
+            {isRest && <span className="mt-0.5 text-[0.65rem] font-medium">휴식</span>}
+          </div>
           {isRest ? (
-            <div className="px-3 py-3">
+            <div className="flex min-w-0 flex-1 items-center px-3 py-2.5">
               <RestTimeView />
             </div>
           ) : (
-            <div className="divide-y divide-[var(--line)]">
+            <div className="min-w-0 flex-1 divide-y divide-[var(--line)]">
               {rows.map(({ court, match }) => (
                 <div
                   key={`${time}-${court}`}
                   className={`flex gap-2.5 px-3 py-2.5 transition-opacity ${getMatchHighlightClass(match, highlightedPlayer, highlightActive)}`}
                 >
-                  <span className="w-10 shrink-0 pt-0.5 text-xs font-semibold text-[var(--muted)]">
-                    코트{court}
-                  </span>
+                  {showCourtLabel && (
+                    <span className="w-10 shrink-0 pt-0.5 text-xs font-semibold text-[var(--muted)]">
+                      코트{court}
+                    </span>
+                  )}
                   <div className="min-w-0 flex-1">
                     <ScheduleMatchView match={match} teamInfo={teamInfo} />
                   </div>

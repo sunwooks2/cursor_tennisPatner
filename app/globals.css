@@ -203,16 +203,37 @@ body {
     color 0.2s ease;
 }
 
-.type-chip:hover:not(.type-chip--active) {
-  border-color: var(--primary-border);
-  background: var(--highlight);
-  color: var(--primary-text);
+@media (hover: hover) {
+  .type-chip:hover:not(.type-chip--active) {
+    border-color: var(--primary-border);
+    background: var(--highlight);
+    color: var(--primary-text);
+  }
+}
+
+.type-chip:focus {
+  outline: none;
+}
+
+.type-chip:focus:not(.type-chip--active),
+.type-chip:focus-visible:not(.type-chip--active) {
+  border-color: var(--line);
+  background: #fff;
+  color: var(--muted);
+}
+
+.type-chip:focus-visible:not(.type-chip--active) {
+  box-shadow: 0 0 0 2px rgba(216, 225, 238, 0.95);
 }
 
 .type-chip--active {
   border-color: var(--primary-border);
   background: var(--primary-soft);
   color: var(--primary-text);
+}
+
+.type-chip--active:focus-visible {
+  box-shadow: 0 0 0 2px rgba(184, 230, 0, 0.35);
 }
 
 .action-btn-row {
@@ -299,6 +320,32 @@ body {
 .stepper-btn:disabled {
   cursor: not-allowed;
   opacity: 0.4;
+}
+
+.stepper-label--highlight {
+  color: #b45353;
+  font-weight: 600;
+}
+
+.stepper-control--highlight {
+  border-color: #f5b4b4;
+  background: #fff5f5;
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.12);
+}
+
+.stepper-control--highlight .stepper-btn {
+  border-color: #f5d0d0;
+}
+
+.court-capacity-hint {
+  margin: 0;
+  border-radius: 0.625rem;
+  border: 1px solid #f5d0d0;
+  background: #fff5f5;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: #b45353;
 }
 
 .name-input-row-label {

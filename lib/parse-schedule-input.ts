@@ -1,3 +1,4 @@
+import { typesNeedFemale, typesNeedMale } from "./match-type-gender";
 import type { MatchType, ScheduleInput, ScheduleMode, TeamRoster } from "./types";
 
 export const DEFAULT_TEAM_A: TeamRoster = {
@@ -39,6 +40,51 @@ export function resizeNames(names: string[], count: number): string[] {
   return [...names, ...Array.from({ length: count - names.length }, () => "")];
 }
 
+export function applyTeamRosterDefaultsForTypes(
+  teamA: TeamRoster,
+  teamB: TeamRoster,
+  types: MatchType[]
+): { teamA: TeamRoster; teamB: TeamRoster } {
+  const needMale = typesNeedMale(types);
+  const needFemale = typesNeedFemale(types);
+  let nextA = { ...teamA };
+  let nextB = { ...teamB };
+
+  if (!needMale) {
+    nextA = { ...nextA, maleCount: 0, maleNames: [] };
+    nextB = { ...nextB, maleCount: 0, maleNames: [] };
+  } else if (nextA.maleCount === 0 && nextB.maleCount === 0) {
+    nextA = {
+      ...nextA,
+      maleCount: DEFAULT_TEAM_DOUBLES_PER_SIDE,
+      maleNames: resizeNames(nextA.maleNames, DEFAULT_TEAM_DOUBLES_PER_SIDE),
+    };
+    nextB = {
+      ...nextB,
+      maleCount: DEFAULT_TEAM_DOUBLES_PER_SIDE,
+      maleNames: resizeNames(nextB.maleNames, DEFAULT_TEAM_DOUBLES_PER_SIDE),
+    };
+  }
+
+  if (!needFemale) {
+    nextA = { ...nextA, femaleCount: 0, femaleNames: [] };
+    nextB = { ...nextB, femaleCount: 0, femaleNames: [] };
+  } else if (nextA.femaleCount === 0 && nextB.femaleCount === 0) {
+    nextA = {
+      ...nextA,
+      femaleCount: DEFAULT_TEAM_DOUBLES_PER_SIDE,
+      femaleNames: resizeNames(nextA.femaleNames, DEFAULT_TEAM_DOUBLES_PER_SIDE),
+    };
+    nextB = {
+      ...nextB,
+      femaleCount: DEFAULT_TEAM_DOUBLES_PER_SIDE,
+      femaleNames: resizeNames(nextB.femaleNames, DEFAULT_TEAM_DOUBLES_PER_SIDE),
+    };
+  }
+
+  return { teamA: nextA, teamB: nextB };
+}
+
 function parseTeamRoster(prefix: string, params: URLSearchParams, defaultName: string): TeamRoster {
   const maleCount = Number(params.get(`${prefix}m`) ?? 0);
   const femaleCount = Number(params.get(`${prefix}f`) ?? 0);
@@ -78,6 +124,9 @@ export function parseInputFromSearchParams(params: URLSearchParams): {
   if (input.mode === "team") {
     input.teamA = parseTeamRoster("ta", params, "");
     input.teamB = parseTeamRoster("tb", params, "");
+    const teamDefaults = applyTeamRosterDefaultsForTypes(input.teamA, input.teamB, input.types);
+    input.teamA = teamDefaults.teamA;
+    input.teamB = teamDefaults.teamB;
   } else {
     const m = params.get("m");
     const f = params.get("f");

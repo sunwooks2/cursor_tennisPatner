@@ -26,9 +26,9 @@ import { PlayerStatsPrint } from "@/components/player-stats-print";
 import { ScheduleMatchView } from "@/components/schedule-match-view";
 import { TeamRosterForm } from "@/components/team-roster-form";
 import {
+  applyTeamRosterDefaultsForTypes,
   DEFAULT_FREE_DOUBLES_COUNT,
   DEFAULT_INPUT,
-  DEFAULT_TEAM_DOUBLES_PER_SIDE,
   formatTeamSummary,
   parseInputFromSearchParams,
   resizeNames,
@@ -53,8 +53,8 @@ import {
 import type { CourtFilter, GeneratedSchedule, MatchType, ScheduleInput, ScheduleMode } from "@/lib/types";
 
 const TYPE_OPTIONS: { value: MatchType; label: string }[] = [
-  { value: "MD", label: "남자복식" },
   { value: "WD", label: "여자복식" },
+  { value: "MD", label: "남자복식" },
   { value: "MXD", label: "혼합복식" },
 ];
 
@@ -80,6 +80,7 @@ export function TournamentGenerator() {
   const [resultsPulse, setResultsPulse] = useState(false);
   const [generateFlash, setGenerateFlash] = useState<GenerationFeedbackType | null>(null);
   const [durationHours, setDurationHours] = useState<DurationHours | null>(2);
+  const actionBtnRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
   const printExportRef = useRef<HTMLDivElement>(null);
 
@@ -94,7 +95,7 @@ export function TournamentGenerator() {
       window.setTimeout(() => setResultsPulse(false), 1000);
       window.setTimeout(() => setGenerateFlash(null), 400);
       window.setTimeout(() => {
-        exportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        actionBtnRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 80);
     },
     []
@@ -321,32 +322,8 @@ export function TournamentGenerator() {
         teamB = { ...teamB, femaleCount: 0, femaleNames: [] };
       }
 
-      if (adding && type === "MD" && teamA.maleCount === 0 && teamB.maleCount === 0) {
-        teamA = {
-          ...teamA,
-          maleCount: DEFAULT_TEAM_DOUBLES_PER_SIDE,
-          maleNames: resizeNames(teamA.maleNames, DEFAULT_TEAM_DOUBLES_PER_SIDE),
-        };
-        teamB = {
-          ...teamB,
-          maleCount: DEFAULT_TEAM_DOUBLES_PER_SIDE,
-          maleNames: resizeNames(teamB.maleNames, DEFAULT_TEAM_DOUBLES_PER_SIDE),
-        };
-      }
-      if (adding && type === "WD" && teamA.femaleCount === 0 && teamB.femaleCount === 0) {
-        teamA = {
-          ...teamA,
-          femaleCount: DEFAULT_TEAM_DOUBLES_PER_SIDE,
-          femaleNames: resizeNames(teamA.femaleNames, DEFAULT_TEAM_DOUBLES_PER_SIDE),
-        };
-        teamB = {
-          ...teamB,
-          femaleCount: DEFAULT_TEAM_DOUBLES_PER_SIDE,
-          femaleNames: resizeNames(teamB.femaleNames, DEFAULT_TEAM_DOUBLES_PER_SIDE),
-        };
-      }
-
-      return { ...prev, types, teamA, teamB };
+      const teamDefaults = applyTeamRosterDefaultsForTypes(teamA, teamB, types);
+      return { ...prev, types, ...teamDefaults };
     });
   };
 
@@ -404,7 +381,13 @@ export function TournamentGenerator() {
   };
 
   const handleModeChange = (mode: ScheduleMode) => {
-    setInput((prev) => ({ ...prev, mode }));
+    setInput((prev) => {
+      if (mode !== "team") {
+        return { ...prev, mode };
+      }
+      const teamDefaults = applyTeamRosterDefaultsForTypes(prev.teamA, prev.teamB, prev.types);
+      return { ...prev, mode, ...teamDefaults };
+    });
     setHighlightedPlayer(null);
     setGenerated(null);
   };
@@ -477,7 +460,10 @@ export function TournamentGenerator() {
                 <button
                   key={value}
                   type="button"
-                  onClick={() => toggleType(value)}
+                  onClick={(e) => {
+                    toggleType(value);
+                    e.currentTarget.blur();
+                  }}
                   className={`type-chip ${active ? "type-chip--active" : ""}`}
                   aria-pressed={active}
                 >
@@ -495,7 +481,10 @@ export function TournamentGenerator() {
               <button
                 key={hours}
                 type="button"
-                onClick={() => handleDurationHoursChange(hours)}
+                onClick={(e) => {
+                  handleDurationHoursChange(hours);
+                  e.currentTarget.blur();
+                }}
                 className={`type-chip ${durationHours === hours ? "type-chip--active" : ""}`}
                 aria-pressed={durationHours === hours}
               >
@@ -510,8 +499,21 @@ export function TournamentGenerator() {
               label="코트 수"
               value={input.courtCount}
               min={1}
+              highlighted={!!maxCourtsHint}
               onChange={(courtCount) => setInput((prev) => ({ ...prev, courtCount }))}
             />
+            <label className="block min-w-0">
+              <span className="mb-1.5 block text-[0.92rem]">경기시간(분)</span>
+              <input
+                type="number"
+                min={10}
+                step={5}
+                required
+                value={input.matchMinutes}
+                onChange={(e) => setInput((prev) => ({ ...prev, matchMinutes: Number(e.target.value) }))}
+                className="form-control-input w-full rounded-lg border border-[var(--line)] bg-white px-2 py-2.5 text-[0.92rem] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              />
+            </label>
             <label className="block min-w-0">
               <span className="mb-1.5 block text-[0.92rem]">시작시간</span>
               <input
@@ -532,54 +534,33 @@ export function TournamentGenerator() {
                 className="form-control-input w-full rounded-lg border border-[var(--line)] bg-white px-2 py-2.5 text-[0.92rem]"
               />
             </label>
-            <label className="block min-w-0">
-              <span className="mb-1.5 block text-[0.92rem]">경기시간(분)</span>
-              <input
-                type="number"
-                min={10}
-                step={5}
-                required
-                value={input.matchMinutes}
-                onChange={(e) => setInput((prev) => ({ ...prev, matchMinutes: Number(e.target.value) }))}
-                className="form-control-input w-full rounded-lg border border-[var(--line)] bg-white px-2 py-2.5 text-[0.92rem] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-              />
-            </label>
           </div>
           {maxCourtsHint && (
-            <p className="col-span-full text-sm text-amber-800">{maxCourtsHint}</p>
+            <p className="court-capacity-hint col-span-full">{maxCourtsHint}</p>
           )}
           {input.mode === "free" ? (
             (needsMale || needsFemale) && (
               <div className="col-span-full flex flex-col gap-2">
                 <div className="grid grid-cols-2 gap-2 md:grid-cols-4 [&>*]:min-w-0">
-                  {needsMale && (
-                    <NumberStepper
-                      label="남성 인원수"
-                      value={input.maleCount}
-                      min={0}
-                      onChange={handleMaleCountChange}
-                    />
-                  )}
                   {needsFemale && (
                     <NumberStepper
                       label="여성 인원수"
                       value={input.femaleCount}
                       min={0}
+                      highlighted={!!maxCourtsHint}
                       onChange={handleFemaleCountChange}
                     />
                   )}
+                  {needsMale && (
+                    <NumberStepper
+                      label="남성 인원수"
+                      value={input.maleCount}
+                      min={0}
+                      highlighted={!!maxCourtsHint}
+                      onChange={handleMaleCountChange}
+                    />
+                  )}
                 </div>
-                {needsMale && (
-                  <PlayerNameInputRow
-                    genderLabel="남자"
-                    count={input.maleCount}
-                    names={input.maleNames}
-                    placeholderPrefix="남"
-                    keyPrefix="male-name"
-                    onNameChange={handleMaleNameChange}
-                    className="rounded-lg border border-[var(--line)] bg-[#f8fafc] px-2 py-2"
-                  />
-                )}
                 {needsFemale && (
                   <PlayerNameInputRow
                     genderLabel="여자"
@@ -591,6 +572,17 @@ export function TournamentGenerator() {
                     className="rounded-lg border border-[var(--line)] bg-[#f8fafc] px-2 py-2"
                   />
                 )}
+                {needsMale && (
+                  <PlayerNameInputRow
+                    genderLabel="남자"
+                    count={input.maleCount}
+                    names={input.maleNames}
+                    placeholderPrefix="남"
+                    keyPrefix="male-name"
+                    onNameChange={handleMaleNameChange}
+                    className="rounded-lg border border-[var(--line)] bg-[#f8fafc] px-2 py-2"
+                  />
+                )}
               </div>
             )
           ) : (
@@ -599,12 +591,14 @@ export function TournamentGenerator() {
                 roster={input.teamA}
                 showMale={needsMale}
                 showFemale={needsFemale}
+                highlighted={!!maxCourtsHint}
                 onChange={(teamA) => setInput((prev) => ({ ...prev, teamA }))}
               />
               <TeamRosterForm
                 roster={input.teamB}
                 showMale={needsMale}
                 showFemale={needsFemale}
+                highlighted={!!maxCourtsHint}
                 onChange={(teamB) => setInput((prev) => ({ ...prev, teamB }))}
               />
               <p className="text-sm text-[var(--muted)]">
@@ -614,7 +608,7 @@ export function TournamentGenerator() {
             </div>
           )}
 
-          <div className="action-btn-row col-span-full">
+          <div ref={actionBtnRef} className="action-btn-row col-span-full">
             <button
               type="submit"
               className={`btn btn-primary ${generateFlash === "create" ? "generation-btn-flash" : ""}`}
@@ -689,21 +683,23 @@ export function TournamentGenerator() {
               selectedPlayer={highlightedPlayer}
               onSelect={handleHighlightPlayer}
             />
-            <div className="export-exclude mb-3">
-              <p className="mb-1.5 text-xs font-semibold text-[var(--muted)]">코트 보기</p>
-              <div className="flex flex-wrap gap-1.5">
-                {courtFilterOptions.map(({ value, label }) => (
-                  <button
-                    key={String(value)}
-                    type="button"
-                    onClick={() => setCourtFilter(value)}
-                    className={`rounded-full border px-3 py-1.5 text-[0.86rem] ${getFilterChipClass(courtFilter === value)}`}
-                  >
-                    {label}
-                  </button>
-                ))}
+            {courtCount > 1 && (
+              <div className="export-exclude mb-3">
+                <p className="mb-1.5 text-xs font-semibold text-[var(--muted)]">코트 보기</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {courtFilterOptions.map(({ value, label }) => (
+                    <button
+                      key={String(value)}
+                      type="button"
+                      onClick={() => setCourtFilter(value)}
+                      className={`rounded-full border px-3 py-1.5 text-[0.86rem] ${getFilterChipClass(courtFilter === value)}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full border-collapse">
@@ -775,10 +771,7 @@ export function TournamentGenerator() {
           </section>
 
           <section className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
-            <h2 className="mb-2 text-[1.1rem] font-semibold">참가자별 페어/상대 통계</h2>
-            <p className="mb-3 text-sm text-[var(--muted)]">
-              참가자별 페어 횟수, 상대 만남 횟수를 막대 그래프로 표시합니다.
-            </p>
+            <h2 className="mb-3 text-[1.1rem] font-semibold">참가자별 페어/상대 통계</h2>
             <PlayerStatsBars
               stats={generated.playerStats}
               males={generated.males}

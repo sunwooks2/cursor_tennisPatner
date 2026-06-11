@@ -15,6 +15,7 @@ type TeamRosterFormProps = {
   onChange: (roster: TeamRoster) => void;
   showMale?: boolean;
   showFemale?: boolean;
+  highlighted?: boolean;
 };
 
 export function TeamRosterForm({
@@ -22,6 +23,7 @@ export function TeamRosterForm({
   onChange,
   showMale = true,
   showFemale = true,
+  highlighted = false,
 }: TeamRosterFormProps) {
   const update = (patch: Partial<TeamRoster>) => onChange({ ...roster, ...patch });
   const malePrefix = getTeamMalePrefix(roster.name);
@@ -44,19 +46,6 @@ export function TeamRosterForm({
 
       <div className="flex flex-col gap-2">
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4 [&>*]:min-w-0">
-          {showMale && (
-            <NumberStepper
-              label="남성 인원"
-              value={roster.maleCount}
-              min={0}
-              onChange={(maleCount) =>
-                update({
-                  maleCount,
-                  maleNames: resizeNames(roster.maleNames, maleCount),
-                })
-              }
-            />
-          )}
           {showFemale && (
             <NumberStepper
               label="여성 인원"
@@ -70,22 +59,21 @@ export function TeamRosterForm({
               }
             />
           )}
+          {showMale && (
+            <NumberStepper
+              label="남성 인원"
+              value={roster.maleCount}
+              min={0}
+              highlighted={highlighted}
+              onChange={(maleCount) =>
+                update({
+                  maleCount,
+                  maleNames: resizeNames(roster.maleNames, maleCount),
+                })
+              }
+            />
+          )}
         </div>
-
-        {showMale && (
-          <PlayerNameInputRow
-            genderLabel="남자"
-            count={roster.maleCount}
-            names={roster.maleNames}
-            placeholderPrefix={malePrefix}
-            keyPrefix={`${sectionKey}-male`}
-            onNameChange={(index, value) => {
-              const maleNames = [...resizeNames(roster.maleNames, roster.maleCount)];
-              maleNames[index] = value;
-              update({ maleNames });
-            }}
-          />
-        )}
 
         {showFemale && (
           <PlayerNameInputRow
@@ -98,6 +86,21 @@ export function TeamRosterForm({
               const femaleNames = [...resizeNames(roster.femaleNames, roster.femaleCount)];
               femaleNames[index] = value;
               update({ femaleNames });
+            }}
+          />
+        )}
+
+        {showMale && (
+          <PlayerNameInputRow
+            genderLabel="남자"
+            count={roster.maleCount}
+            names={roster.maleNames}
+            placeholderPrefix={malePrefix}
+            keyPrefix={`${sectionKey}-male`}
+            onNameChange={(index, value) => {
+              const maleNames = [...resizeNames(roster.maleNames, roster.maleCount)];
+              maleNames[index] = value;
+              update({ maleNames });
             }}
           />
         )}

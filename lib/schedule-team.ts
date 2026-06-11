@@ -167,9 +167,12 @@ export function validateTeamInput(input: ScheduleInput): string | null {
   }
   if (
     types.includes("MXD") &&
-    (teamA.maleCount < 1 || teamA.femaleCount < 1 || teamB.maleCount < 1 || teamB.femaleCount < 1)
+    (teamA.maleCount < 2 ||
+      teamA.femaleCount < 2 ||
+      teamB.maleCount < 2 ||
+      teamB.femaleCount < 2)
   ) {
-    return "혼합복식은 팀당 남·여 각 1명 이상이 필요합니다.";
+    return "혼합복식은 팀당 남·여 각 2명 이상이 필요합니다.";
   }
   return null;
 }
