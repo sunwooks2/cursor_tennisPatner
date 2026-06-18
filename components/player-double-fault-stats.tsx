@@ -2,6 +2,13 @@ import { PlayerNameWithGender } from "@/components/player-name-with-gender";
 import type { TeamDoubleFaultGroup } from "@/lib/double-fault-totals";
 import { isMalePlayer } from "@/lib/player-stats-display";
 
+function rankLabel(rank: number): string {
+  if (rank === 1) return "1위";
+  if (rank === 2) return "2위";
+  if (rank === 3) return "3위";
+  return `${rank}위`;
+}
+
 interface PlayerDoubleFaultStatsProps {
   groups: TeamDoubleFaultGroup[];
   males: string[];
@@ -11,13 +18,11 @@ interface PlayerDoubleFaultStatsProps {
 }
 
 function GenderSection({
-  title,
   items,
   males,
   highlightedPlayer,
   onHighlightPlayer,
 }: {
-  title: string;
   items: TeamDoubleFaultGroup["males"];
   males: string[];
   highlightedPlayer?: string | null;
@@ -29,17 +34,19 @@ function GenderSection({
 
   return (
     <div className="double-fault-stats__section">
-      <p className="double-fault-stats__gender-title">
-        <span>{title === "남" ? "남자" : "여자"}</span>
-      </p>
       <ol className="player-score-ranking m-0 list-none p-0">
         {items.map((item, index) => {
           const width = item.total > 0 ? Math.max((item.total / maxTotal) * 100, 10) : 0;
           const rank = index + 1;
+          const topThree = rank <= 3;
 
           return (
             <li key={item.player} className="player-score-ranking__item">
-              <span className="player-score-ranking__rank">{rank}</span>
+              <span
+                className={`player-score-ranking__rank ${topThree ? "player-score-ranking__rank--top" : ""}`.trim()}
+              >
+                {rankLabel(rank)}
+              </span>
               <span className="player-score-ranking__name double-fault-stats__name">
                 {onHighlightPlayer ? (
                   <PlayerNameWithGender
@@ -102,14 +109,12 @@ function TeamGroup({
       )}
       <div className="double-fault-stats__team-stack">
         <GenderSection
-          title="남"
           items={group.males}
           males={males}
           highlightedPlayer={highlightedPlayer}
           onHighlightPlayer={onHighlightPlayer}
         />
         <GenderSection
-          title="여"
           items={group.females}
           males={males}
           highlightedPlayer={highlightedPlayer}

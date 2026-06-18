@@ -986,6 +986,8 @@ export function TournamentGenerator() {
               )}
               <PlayerScoreRanking
                 rankings={playerScoreRankings}
+                males={generated.males}
+                teamInfo={generated.teamInfo}
                 highlightedPlayer={highlightedPlayer}
                 onHighlightPlayer={handleHighlightPlayer}
               />

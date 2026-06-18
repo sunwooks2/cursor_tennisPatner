@@ -1248,7 +1248,7 @@ input[type="time"].form-control-input::-webkit-calendar-picker-indicator {
 }
 
 .player-score-ranking__name {
-  width: 3.25rem;
+  width: 4.5rem;
   flex-shrink: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1548,16 +1548,6 @@ button.player-score-ranking__name:hover {
 
 .double-fault-stats__section {
   min-width: 0;
-}
-
-.double-fault-stats__gender-title {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  margin: 0 0 0.375rem;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--muted);
 }
 
 .double-fault-stats__name {

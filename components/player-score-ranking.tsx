@@ -1,7 +1,13 @@
+import { PlayerNameWithGender } from "@/components/player-name-with-gender";
 import { formatPlayerRecord, type PlayerScoreTotal } from "@/lib/player-score-totals";
+import { isMalePlayer } from "@/lib/player-stats-display";
+import { formatPlayerShortName, getTeamNameForPlayer } from "@/lib/team-stats";
+import type { TeamScheduleInfo } from "@/lib/types";
 
 interface PlayerScoreRankingProps {
   rankings: PlayerScoreTotal[];
+  males: string[];
+  teamInfo?: TeamScheduleInfo;
   highlightedPlayer?: string | null;
   onHighlightPlayer?: (player: string | null) => void;
 }
@@ -13,8 +19,17 @@ function rankLabel(rank: number): string {
   return `${rank}위`;
 }
 
+function getPlayerDisplayName(player: string, teamInfo?: TeamScheduleInfo): string {
+  if (!teamInfo) return player;
+  const teamName = getTeamNameForPlayer(player, teamInfo);
+  const shortName = formatPlayerShortName(player, teamName);
+  return `${teamName} ${shortName}`;
+}
+
 export function PlayerScoreRanking({
   rankings,
+  males,
+  teamInfo,
   highlightedPlayer = null,
   onHighlightPlayer,
 }: PlayerScoreRankingProps) {
@@ -28,6 +43,7 @@ export function PlayerScoreRanking({
         const rank = index + 1;
         const width = Math.max((item.totalPoints / maxPoints) * 100, 10);
         const topThree = rank <= 3;
+        const displayName = getPlayerDisplayName(item.player, teamInfo);
 
         return (
           <li key={item.player} className="player-score-ranking__item">
@@ -36,22 +52,20 @@ export function PlayerScoreRanking({
             >
               {rankLabel(rank)}
             </span>
-            {onHighlightPlayer ? (
-              <button
-                type="button"
-                onClick={() =>
-                  onHighlightPlayer(highlightedPlayer === item.player ? null : item.player)
+            <span className="player-score-ranking__name double-fault-stats__name">
+              <PlayerNameWithGender
+                name={displayName}
+                isMale={isMalePlayer(item.player, males)}
+                active={highlightedPlayer === item.player}
+                onClick={
+                  onHighlightPlayer
+                    ? () =>
+                        onHighlightPlayer(highlightedPlayer === item.player ? null : item.player)
+                    : undefined
                 }
-                className={`player-score-ranking__name ${
-                  highlightedPlayer === item.player ? "player-score-ranking__name--active" : ""
-                }`.trim()}
-                title={`${item.player} · 내 경기 보기`}
-              >
-                {item.player}
-              </button>
-            ) : (
-              <span className="player-score-ranking__name">{item.player}</span>
-            )}
+                title={`${displayName} · 내 경기 보기`}
+              />
+            </span>
             <span className="player-score-ranking__record">{formatPlayerRecord(item)}</span>
             <div className="player-score-ranking__bar-track">
               <div
