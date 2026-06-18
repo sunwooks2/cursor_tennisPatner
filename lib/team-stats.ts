@@ -11,6 +11,38 @@ export function getTeamFemalePrefix(teamName: string): string {
   return name ? `${name} 여` : "여";
 }
 
+export function stripTeamPrefixFromPlayerName(teamName: string, playerName: string): string {
+  const team = teamName.trim();
+  const name = String(playerName ?? "").trim();
+  if (!team || !name) return name;
+  const prefix = `${team} `;
+  return name.startsWith(prefix) ? name.slice(prefix.length) : name;
+}
+
+export function formatTeamPlayerKey(teamName: string, customName: string): string {
+  const team = teamName.trim();
+  const custom = String(customName ?? "").trim();
+  if (!custom) return "";
+  if (!team) return custom;
+  const prefix = `${team} `;
+  return custom.startsWith(prefix) ? custom : `${team} ${custom}`;
+}
+
+export function buildTeamPlayers(
+  teamName: string,
+  gender: "남" | "여",
+  count: number,
+  names: string[] = []
+): string[] {
+  const team = teamName.trim();
+  const slotPrefix = team ? `${team} ${gender}` : gender;
+  return Array.from({ length: count }, (_, idx) => {
+    const custom = names[idx]?.trim();
+    if (!custom) return `${slotPrefix}${idx + 1}`;
+    return formatTeamPlayerKey(team, custom);
+  });
+}
+
 export function getTeamNameForPlayer(player: string, teamInfo: TeamScheduleInfo): string {
   if (isTeamAPlayer(player, teamInfo)) return teamInfo.teamAName;
   return teamInfo.teamBName;

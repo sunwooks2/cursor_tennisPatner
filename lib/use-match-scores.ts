@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { clearMatchScore, fetchMatchScores, saveMatchScore } from "@/lib/match-scores-api";
-import { makeMatchKey, type MatchScores } from "@/lib/match-scores";
+import { makeMatchKey, type MatchScores, type MatchScore } from "@/lib/match-scores";
 
 const POLL_MS = 30_000;
 const DELETE_VERIFY_RETRIES = 3;
@@ -70,16 +70,17 @@ export function useMatchScores(eventId: string | null) {
   );
 
   const save = useCallback(
-    async (time: string, court: number, a: number, b: number) => {
+    async (time: string, court: number, a: number, b: number, df?: MatchScore["df"]) => {
       if (!eventId) return;
       const key = makeMatchKey(time, court);
       isMutatingRef.current = true;
       setSaving(true);
       try {
-        await saveMatchScore(eventId, time, court, a, b);
-        setScores((prev) => ({ ...prev, [key]: { a, b } }));
+        await saveMatchScore(eventId, time, court, a, b, df);
+        const saved = { a, b, ...(df ? { df } : {}) };
+        setScores((prev) => ({ ...prev, [key]: saved }));
         const next = await fetchMatchScores(eventId);
-        setScores(next);
+        setScores((prev) => ({ ...prev, ...next, [key]: next[key] ?? saved }));
       } finally {
         isMutatingRef.current = false;
         setSaving(false);

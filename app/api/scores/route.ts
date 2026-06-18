@@ -4,6 +4,7 @@ import {
   getMatchScoreValidationError,
   isValidScoreValue,
   MAX_MATCH_SCORE,
+  normalizeDoubleFaults,
   normalizeMatchScores,
   normalizeTimeLabel,
 } from "@/lib/match-scores";
@@ -75,7 +76,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: validationError }, { status: 400 });
     }
 
-    const result = await postToGoogleScript({ kind: "score_save", eid, time, court, a, b });
+    const df = normalizeDoubleFaults(body.df);
+    if (body.df !== undefined && body.df !== null && !df) {
+      return NextResponse.json({ ok: false, error: "더블폴트 입력값이 올바르지 않습니다." }, { status: 400 });
+    }
+
+    const result = await postToGoogleScript({
+      kind: "score_save",
+      eid,
+      time,
+      court,
+      a,
+      b,
+      df: df ? JSON.stringify(df) : "",
+    });
     if (!result.ok) {
       if (result.error === "missing_url") {
         return NextResponse.json({ ok: false, error: "서버 설정이 완료되지 않았습니다." }, { status: 500 });

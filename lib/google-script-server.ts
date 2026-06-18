@@ -1,4 +1,5 @@
 import type { MatchScores } from "@/lib/match-scores";
+import type { EventRoster } from "@/lib/roster";
 
 export function getGoogleScriptUrl(): string | null {
   return process.env.GOOGLE_SCRIPT_URL ?? null;
@@ -8,6 +9,7 @@ export type GoogleScriptResult = {
   ok: boolean;
   error?: string;
   scores?: MatchScores;
+  roster?: EventRoster | string | null;
 };
 
 export async function postToGoogleScript(

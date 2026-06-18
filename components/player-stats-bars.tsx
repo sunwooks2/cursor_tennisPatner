@@ -1,3 +1,5 @@
+import { GenderIcon } from "@/components/gender-icon";
+import { PlayerNameWithGender } from "@/components/player-name-with-gender";
 import { buildRelationCounts, getOpposingTeamPlayers, getSameTeamPlayers } from "@/lib/team-stats";
 import { formatRelevantTypeCounts, isMalePlayer } from "@/lib/player-stats-display";
 import type { MatchType, PlayerStat, ScheduleMode, TeamScheduleInfo } from "@/lib/types";
@@ -9,33 +11,6 @@ interface PlayerStatsBarsProps {
   teamInfo?: TeamScheduleInfo;
   highlightedPlayer?: string | null;
   onHighlightPlayer?: (player: string | null) => void;
-}
-
-function PlayerNameButton({
-  name,
-  active,
-  onClick,
-}: {
-  name: string;
-  active: boolean;
-  onClick?: () => void;
-}) {
-  if (!onClick) {
-    return <span className="text-sm font-semibold">{name}</span>;
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`text-left text-sm font-semibold underline-offset-2 hover:underline ${
-        active ? "text-[var(--primary-text)] underline" : "text-[var(--text)]"
-      }`}
-      title="내 경기 하이라이트"
-    >
-      {name}
-    </button>
-  );
 }
 
 function TypeCountLabel({
@@ -65,10 +40,12 @@ function CountBars({
   title,
   entries,
   maxCount,
+  males,
 }: {
   title: string;
   entries: [string, number][];
   maxCount: number;
+  males: string[];
 }) {
   if (!entries.length) return null;
 
@@ -81,8 +58,12 @@ function CountBars({
             count > 0 && maxCount > 0 ? Math.max((count / maxCount) * 100, 8) : 0;
           return (
             <div key={name} className="flex items-center gap-2">
-              <span className="w-16 shrink-0 truncate text-xs font-medium" title={name}>
-                {name}
+              <span
+                className="flex w-20 min-w-0 shrink-0 items-center gap-1 truncate text-xs font-medium"
+                title={name}
+              >
+                <GenderIcon gender={isMalePlayer(name, males) ? "male" : "female"} className="h-3.5 w-[0.55rem]" />
+                <span className="truncate">{name}</span>
               </span>
               <div className="relative h-5 flex-1 overflow-hidden rounded bg-[#eef2f8]">
                 {count > 0 ? (
@@ -147,8 +128,9 @@ export function PlayerStatsBars({
           className="rounded-lg border border-[var(--line)] bg-white p-3"
         >
           <h3 className="mb-3 flex flex-wrap items-baseline gap-x-1 text-sm font-bold">
-            <PlayerNameButton
+            <PlayerNameWithGender
               name={stat.player}
+              isMale={isMalePlayer(stat.player, males)}
               active={highlightedPlayer === stat.player}
               onClick={
                 onHighlightPlayer
@@ -156,6 +138,7 @@ export function PlayerStatsBars({
                       onHighlightPlayer(highlightedPlayer === stat.player ? null : stat.player)
                   : undefined
               }
+              title="내 경기 하이라이트"
             />
             <TypeCountLabel
               typeCounts={stat.typeCounts}
@@ -167,11 +150,13 @@ export function PlayerStatsBars({
               title={isTeamMode ? "페어" : "페어 상대"}
               entries={partnerEntriesList[index]}
               maxCount={maxPartner}
+              males={males}
             />
             <CountBars
               title={isTeamMode ? "상대" : "상대 팀원"}
               entries={opponentEntriesList[index]}
               maxCount={maxOpponent}
+              males={males}
             />
           </div>
         </article>

@@ -1,9 +1,55 @@
+export interface MatchDoubleFaults {
+  teamA: [number, number];
+  teamB: [number, number];
+}
+
 export interface MatchScore {
   a: number;
   b: number;
+  df?: MatchDoubleFaults;
 }
 
 export type MatchScores = Record<string, MatchScore>;
+
+export const MAX_DOUBLE_FAULTS = 20;
+
+export function emptyDoubleFaults(): MatchDoubleFaults {
+  return { teamA: [0, 0], teamB: [0, 0] };
+}
+
+export function isValidDoubleFaultValue(value: number): boolean {
+  return Number.isInteger(value) && value >= 0 && value <= MAX_DOUBLE_FAULTS;
+}
+
+export function normalizeDoubleFaults(value: unknown): MatchDoubleFaults | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const raw = value as Partial<MatchDoubleFaults>;
+  if (!Array.isArray(raw.teamA) || !Array.isArray(raw.teamB)) return undefined;
+
+  const teamA: [number, number] = [
+    Number(raw.teamA[0]) || 0,
+    Number(raw.teamA[1]) || 0,
+  ];
+  const teamB: [number, number] = [
+    Number(raw.teamB[0]) || 0,
+    Number(raw.teamB[1]) || 0,
+  ];
+
+  if (
+    !isValidDoubleFaultValue(teamA[0]) ||
+    !isValidDoubleFaultValue(teamA[1]) ||
+    !isValidDoubleFaultValue(teamB[0]) ||
+    !isValidDoubleFaultValue(teamB[1])
+  ) {
+    return undefined;
+  }
+
+  if (teamA[0] === 0 && teamA[1] === 0 && teamB[0] === 0 && teamB[1] === 0) {
+    return undefined;
+  }
+
+  return { teamA, teamB };
+}
 
 export function normalizeTimeLabel(value: string): string | null {
   const trimmed = value.trim();
@@ -29,9 +75,11 @@ export function normalizeMatchScores(scores: MatchScores): MatchScores {
     const court = Number(rawKey.slice(hash + 1));
     if (!time || Number.isNaN(court)) continue;
 
+    const df = normalizeDoubleFaults(rawScore.df);
     normalized[makeMatchKey(time, court)] = {
       a: Number(rawScore.a),
       b: Number(rawScore.b),
+      ...(df ? { df } : {}),
     };
   }
 

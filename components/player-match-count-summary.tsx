@@ -1,3 +1,4 @@
+import { PlayerNameWithGender } from "@/components/player-name-with-gender";
 import { formatRelevantTypeCounts, isMalePlayer } from "@/lib/player-stats-display";
 import type { PlayerStat } from "@/lib/types";
 
@@ -6,33 +7,6 @@ interface PlayerMatchCountSummaryProps {
   males: string[];
   highlightedPlayer?: string | null;
   onHighlightPlayer?: (player: string | null) => void;
-}
-
-function PlayerNameButton({
-  name,
-  active,
-  onClick,
-}: {
-  name: string;
-  active: boolean;
-  onClick?: () => void;
-}) {
-  if (!onClick) {
-    return <span className="text-sm font-semibold">{name}</span>;
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`text-left text-sm font-semibold underline-offset-2 hover:underline ${
-        active ? "text-[var(--primary-text)] underline" : "text-[var(--text)]"
-      }`}
-      title={`${name} · 내 경기 보기`}
-    >
-      {name}
-    </button>
-  );
 }
 
 export function PlayerMatchCountSummary({
@@ -58,8 +32,9 @@ export function PlayerMatchCountSummary({
         return (
           <div key={stat.player} className="min-w-0">
             <div className="mb-1 flex min-w-0 flex-wrap items-baseline gap-x-1 leading-snug">
-              <PlayerNameButton
+              <PlayerNameWithGender
                 name={stat.player}
+                isMale={male}
                 active={highlightedPlayer === stat.player}
                 onClick={
                   onHighlightPlayer
@@ -67,6 +42,7 @@ export function PlayerMatchCountSummary({
                         onHighlightPlayer(highlightedPlayer === stat.player ? null : stat.player)
                     : undefined
                 }
+                title={`${stat.player} · 내 경기 보기`}
               />
               {breakdown && (
                 <span className="text-[0.68rem] font-normal text-[var(--muted)]">{breakdown}</span>

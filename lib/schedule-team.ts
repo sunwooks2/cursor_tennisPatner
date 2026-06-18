@@ -1,5 +1,4 @@
 import {
-  buildPlayers,
   createSlotBusy,
   excludeBusyPlayers,
   incrementNestedCount,
@@ -12,7 +11,7 @@ import {
   type RandFn,
 } from "./schedule-common";
 import { typesNeedFemale, typesNeedMale } from "./match-type-gender";
-import { getTeamFemalePrefix, getTeamMalePrefix } from "./team-stats";
+import { buildTeamPlayers } from "./team-stats";
 import type {
   GeneratedSchedule,
   MatchType,
@@ -185,32 +184,16 @@ function toMinute(time: string): number {
 export function generateTeamSchedule(input: ScheduleInput, seed: number): GeneratedSchedule {
   const rand = makeRng(seed);
   const teamAMales = typesNeedMale(input.types)
-    ? buildPlayers(
-        getTeamMalePrefix(input.teamA.name),
-        input.teamA.maleCount,
-        input.teamA.maleNames
-      )
+    ? buildTeamPlayers(input.teamA.name, "남", input.teamA.maleCount, input.teamA.maleNames)
     : [];
   const teamAFemales = typesNeedFemale(input.types)
-    ? buildPlayers(
-        getTeamFemalePrefix(input.teamA.name),
-        input.teamA.femaleCount,
-        input.teamA.femaleNames
-      )
+    ? buildTeamPlayers(input.teamA.name, "여", input.teamA.femaleCount, input.teamA.femaleNames)
     : [];
   const teamBMales = typesNeedMale(input.types)
-    ? buildPlayers(
-        getTeamMalePrefix(input.teamB.name),
-        input.teamB.maleCount,
-        input.teamB.maleNames
-      )
+    ? buildTeamPlayers(input.teamB.name, "남", input.teamB.maleCount, input.teamB.maleNames)
     : [];
   const teamBFemales = typesNeedFemale(input.types)
-    ? buildPlayers(
-        getTeamFemalePrefix(input.teamB.name),
-        input.teamB.femaleCount,
-        input.teamB.femaleNames
-      )
+    ? buildTeamPlayers(input.teamB.name, "여", input.teamB.femaleCount, input.teamB.femaleNames)
     : [];
   const slots = makeTimeSlots(input.startTime, input.endTime, input.matchMinutes);
   const totalMatches = slots.length * input.courtCount;

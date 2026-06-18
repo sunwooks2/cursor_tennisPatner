@@ -1,4 +1,4 @@
-import { normalizeMatchScores, type MatchScores } from "@/lib/match-scores";
+import { normalizeMatchScores, type MatchDoubleFaults, type MatchScores } from "@/lib/match-scores";
 
 type ScoresResponse = {
   ok: boolean;
@@ -20,12 +20,13 @@ export async function saveMatchScore(
   time: string,
   court: number,
   a: number,
-  b: number
+  b: number,
+  df?: MatchDoubleFaults
 ): Promise<void> {
   const res = await fetch("/api/scores", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ eid: eventId, time, court, a, b }),
+    body: JSON.stringify({ eid: eventId, time, court, a, b, df }),
   });
   const data = (await res.json()) as ScoresResponse;
   if (!res.ok || !data.ok) {
