@@ -15,7 +15,7 @@ interface ScheduleMatchViewProps {
 function MatchTypeBadge({ type, label }: { type: MatchType; label: string }) {
   return (
     <span
-      className={`shrink-0 rounded-full px-1.5 py-px text-[0.65rem] font-semibold ${getMatchTypeBadgeClass(type)}`}
+      className={`schedule-match-line__badge shrink-0 rounded-full px-1.5 py-px text-[0.65rem] font-semibold ${getMatchTypeBadgeClass(type)}`}
     >
       {label}
     </span>
@@ -27,16 +27,18 @@ function TeamSide({
   players,
   playerKeys,
   highlightedPlayer,
+  className = "",
 }: {
   teamName: string;
   players: [string, string];
   playerKeys: [string, string];
   highlightedPlayer?: string | null;
+  className?: string;
 }) {
   return (
-    <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
-      <span className="font-semibold text-[var(--text)]">{teamName}</span>
-      <span className="text-[var(--muted)]">
+    <span className={`schedule-match-line__side inline-flex min-w-0 items-center gap-1 ${className}`.trim()}>
+      <span className="shrink-0 font-semibold text-[var(--text)]">{teamName}</span>
+      <span className="min-w-0 text-[var(--muted)]">
         <HighlightablePlayerName
           name={players[0]}
           highlightKey={playerKeys[0]}
@@ -53,6 +55,24 @@ function TeamSide({
   );
 }
 
+function PlayerPair({
+  players,
+  highlightedPlayer,
+  className = "",
+}: {
+  players: [string, string];
+  highlightedPlayer?: string | null;
+  className?: string;
+}) {
+  return (
+    <span className={`schedule-match-line__side min-w-0 text-[var(--text)] ${className}`.trim()}>
+      <HighlightablePlayerName name={players[0]} highlightedPlayer={highlightedPlayer} />
+      <span aria-hidden>·</span>
+      <HighlightablePlayerName name={players[1]} highlightedPlayer={highlightedPlayer} />
+    </span>
+  );
+}
+
 function TeamMatchLine({
   display,
   highlightedPlayer,
@@ -61,22 +81,28 @@ function TeamMatchLine({
   highlightedPlayer?: string | null;
 }) {
   return (
-    <p className="m-0 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[0.8rem] leading-snug">
+    <div className="schedule-match-line m-0 text-[0.8rem] leading-snug">
       <MatchTypeBadge type={display.type} label={display.typeLabel} />
-      <TeamSide
-        teamName={display.sideA.teamName}
-        players={display.sideA.players}
-        playerKeys={display.sideA.playerKeys}
-        highlightedPlayer={highlightedPlayer}
-      />
-      <span className="shrink-0 text-[0.62rem] font-semibold text-[var(--muted)]">VS</span>
-      <TeamSide
-        teamName={display.sideB.teamName}
-        players={display.sideB.players}
-        playerKeys={display.sideB.playerKeys}
-        highlightedPlayer={highlightedPlayer}
-      />
-    </p>
+      <div className="schedule-match-line__body">
+        <TeamSide
+          className="schedule-match-line__side-a"
+          teamName={display.sideA.teamName}
+          players={display.sideA.players}
+          playerKeys={display.sideA.playerKeys}
+          highlightedPlayer={highlightedPlayer}
+        />
+        <span className="schedule-match-line__vs shrink-0 text-[0.62rem] font-semibold text-[var(--muted)]">
+          VS
+        </span>
+        <TeamSide
+          className="schedule-match-line__side-b"
+          teamName={display.sideB.teamName}
+          players={display.sideB.players}
+          playerKeys={display.sideB.playerKeys}
+          highlightedPlayer={highlightedPlayer}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -90,20 +116,24 @@ function FreeMatchLine({
   if (!match.teamA || !match.teamB || !match.type) return null;
 
   return (
-    <p className="m-0 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[0.8rem] leading-snug">
+    <div className="schedule-match-line m-0 text-[0.8rem] leading-snug">
       <MatchTypeBadge type={match.type} label={parseTypeLabel(match.type)} />
-      <span className="text-[var(--text)]">
-        <HighlightablePlayerName name={match.teamA[0]} highlightedPlayer={highlightedPlayer} />
-        <span aria-hidden>·</span>
-        <HighlightablePlayerName name={match.teamA[1]} highlightedPlayer={highlightedPlayer} />
-      </span>
-      <span className="shrink-0 text-[0.62rem] font-semibold text-[var(--muted)]">VS</span>
-      <span className="text-[var(--text)]">
-        <HighlightablePlayerName name={match.teamB[0]} highlightedPlayer={highlightedPlayer} />
-        <span aria-hidden>·</span>
-        <HighlightablePlayerName name={match.teamB[1]} highlightedPlayer={highlightedPlayer} />
-      </span>
-    </p>
+      <div className="schedule-match-line__body">
+        <PlayerPair
+          className="schedule-match-line__side-a"
+          players={match.teamA}
+          highlightedPlayer={highlightedPlayer}
+        />
+        <span className="schedule-match-line__vs shrink-0 text-[0.62rem] font-semibold text-[var(--muted)]">
+          VS
+        </span>
+        <PlayerPair
+          className="schedule-match-line__side-b"
+          players={match.teamB}
+          highlightedPlayer={highlightedPlayer}
+        />
+      </div>
+    </div>
   );
 }
 

@@ -828,7 +828,7 @@ export function TournamentGenerator() {
           {eventId && (
             <button
               type="button"
-              className="btn btn-secondary schedule-view-toolbar__register"
+              className="btn btn-primary schedule-view-toolbar__register"
               onClick={() => setRegistrationOpen(true)}
             >
               선수등록
@@ -863,16 +863,11 @@ export function TournamentGenerator() {
 
           <section className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
             <div className="mb-3 flex items-start justify-between gap-2">
-              <div>
-                <h2 className="mb-1 text-[1.1rem] font-semibold">생성된 대진표</h2>
-                <p className="m-0 text-xs text-[var(--muted)]">
-                  경기를 탭하면 점수를 입력할 수 있습니다.
-                </p>
-              </div>
+              <h2 className="mb-0 text-[1.1rem] font-semibold">생성된 대진표</h2>
               {eventId && (
                 <button
                   type="button"
-                  className="btn btn-secondary shrink-0 text-sm"
+                  className="btn btn-primary shrink-0 text-sm"
                   onClick={() => setRegistrationOpen(true)}
                 >
                   선수등록
@@ -883,6 +878,9 @@ export function TournamentGenerator() {
               players={highlightPlayers}
               selectedPlayer={highlightedPlayer}
               onSelect={handleHighlightPlayer}
+              mode={generated.mode}
+              teamInfo={generated.teamInfo}
+              males={generated.males}
             />
             {courtCount > 1 && (
               <div className="export-exclude mb-3">

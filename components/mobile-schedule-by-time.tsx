@@ -69,7 +69,7 @@ export function MobileScheduleByTime({
             <span>{time}</span>
           </div>
           {isRest ? (
-            <div className="schedule-mobile-row min-w-0 flex-1">
+            <div className="schedule-mobile-row schedule-mobile-row--rest min-w-0 flex-1">
               <RestTimeView />
             </div>
           ) : (
