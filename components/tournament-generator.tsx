@@ -26,6 +26,7 @@ import { PlayerScoreRanking } from "@/components/player-score-ranking";
 import { TeamScoreSummary } from "@/components/team-score-summary";
 import { MobileScheduleByTime } from "@/components/mobile-schedule-by-time";
 import { PlayerHighlightChips } from "@/components/player-highlight-chips";
+import { CollapsibleSection } from "@/components/collapsible-section";
 import { PlayerStatsBars } from "@/components/player-stats-bars";
 import { PlayerStatsPrint } from "@/components/player-stats-print";
 import { TeamRosterForm } from "@/components/team-roster-form";
@@ -825,15 +826,6 @@ export function TournamentGenerator() {
             isExcelExporting={isExcelExporting}
             isPrintExporting={isPrintExporting}
           />
-          {eventId && (
-            <button
-              type="button"
-              className="btn btn-primary schedule-view-toolbar__register"
-              onClick={() => setRegistrationOpen(true)}
-            >
-              선수등록
-            </button>
-          )}
           <Link
             href="/"
             className="btn btn-primary schedule-view-toolbar__create"
@@ -862,12 +854,12 @@ export function TournamentGenerator() {
           )}
 
           <section className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
-            <div className="mb-3 flex items-start justify-between gap-2">
+            <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="mb-0 text-[1.1rem] font-semibold">생성된 대진표</h2>
               {eventId && (
                 <button
                   type="button"
-                  className="btn btn-primary shrink-0 text-sm"
+                  className="btn btn-primary btn-compact shrink-0"
                   onClick={() => setRegistrationOpen(true)}
                 >
                   선수등록
@@ -884,7 +876,6 @@ export function TournamentGenerator() {
             />
             {courtCount > 1 && (
               <div className="export-exclude mb-3">
-                <p className="mb-1.5 text-xs font-semibold text-[var(--muted)]">코트 보기</p>
                 <div className="flex flex-wrap gap-1.5">
                   {courtFilterOptions.map(({ value, label }) => (
                     <button
@@ -1017,8 +1008,10 @@ export function TournamentGenerator() {
             </section>
           )}
 
-          <section className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
-            <h2 className="mb-3 text-[1.1rem] font-semibold">참가자별 페어/상대 통계</h2>
+          <CollapsibleSection
+            title="참가자별 페어/상대 통계"
+            className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5"
+          >
             <PlayerStatsBars
               stats={generated.playerStats}
               males={generated.males}
@@ -1027,7 +1020,7 @@ export function TournamentGenerator() {
               highlightedPlayer={highlightedPlayer}
               onHighlightPlayer={handleHighlightPlayer}
             />
-          </section>
+          </CollapsibleSection>
         </div>
       )}
 

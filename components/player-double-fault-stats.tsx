@@ -1,5 +1,8 @@
 import { PlayerNameWithGender } from "@/components/player-name-with-gender";
-import type { TeamDoubleFaultGroup } from "@/lib/double-fault-totals";
+import {
+  formatDoubleFaultAmount,
+  type TeamDoubleFaultGroup,
+} from "@/lib/double-fault-totals";
 import { isMalePlayer } from "@/lib/player-stats-display";
 
 function rankLabel(rank: number): string {
@@ -78,8 +81,9 @@ function GenderSection({
                   />
                 ) : null}
               </div>
-              <span className="player-score-ranking__points double-fault-stats__count">
-                {item.total}회
+              <span className="double-fault-stats__meta">
+                <span className="double-fault-stats__count">{item.total}회</span>
+                <span className="double-fault-stats__amount">{formatDoubleFaultAmount(item.total)}</span>
               </span>
             </li>
           );

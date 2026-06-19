@@ -89,25 +89,10 @@ export function PlayerHighlightChips({
 
   return (
     <div className="export-exclude player-highlight-chips mb-3">
-      <div className="player-highlight-chips__header">
-        <p className="m-0 text-xs font-semibold text-[var(--muted)]">내 경기 보기</p>
-        <button
-          type="button"
-          onClick={() => onSelect(null)}
-          className={`shrink-0 rounded-full border px-3 py-1.5 text-[0.86rem] ${
-            selectedPlayer === null
-              ? "border-[var(--primary-border)] bg-[var(--primary-soft)] font-semibold text-[var(--primary-text)]"
-              : "border-[var(--line)] bg-white text-[var(--text)]"
-          }`}
-        >
-          전체
-        </button>
-      </div>
-
       <div className="player-highlight-chips__groups">
         {groups.map((group) => (
           <div key={group.label} className="player-highlight-chips__row">
-            <span className="player-highlight-chips__group-label">{group.label}</span>
+            <span className="player-highlight-chips__group-label shrink-0">{group.label}</span>
             <div className="player-highlight-chips__scroll">
               {group.players.map((player) => (
                 <button

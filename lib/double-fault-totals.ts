@@ -8,6 +8,12 @@ export interface PlayerDoubleFaultTotal {
   total: number;
 }
 
+export const DOUBLE_FAULT_FINE_WON = 500;
+
+export function formatDoubleFaultAmount(count: number): string {
+  return `${(count * DOUBLE_FAULT_FINE_WON).toLocaleString("ko-KR")}원`;
+}
+
 export interface TeamDoubleFaultGroup {
   teamName: string;
   males: PlayerDoubleFaultTotal[];
