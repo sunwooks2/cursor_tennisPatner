@@ -842,15 +842,17 @@ export function TournamentGenerator() {
           className={`screen-only ${resultsPulse ? "generation-results-pulse" : ""}`}
         >
           {!isScheduleViewMode && (
-            <section className="mb-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
-              <p className="mb-2 text-xs font-semibold text-[var(--muted)]">경기 횟수</p>
+            <CollapsibleSection
+              title="참가자별 경기 횟수"
+              className="mb-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5"
+            >
               <PlayerMatchCountSummary
                 stats={generated.playerStats}
                 males={generated.males}
                 highlightedPlayer={highlightedPlayer}
                 onHighlightPlayer={handleHighlightPlayer}
               />
-            </section>
+            </CollapsibleSection>
           )}
 
           <section className="rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
@@ -997,15 +999,17 @@ export function TournamentGenerator() {
           )}
 
           {isScheduleViewMode && (
-            <section className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
-              <p className="mb-2 text-xs font-semibold text-[var(--muted)]">경기 횟수</p>
+            <CollapsibleSection
+              title="참가자별 경기 횟수"
+              className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5"
+            >
               <PlayerMatchCountSummary
                 stats={generated.playerStats}
                 males={generated.males}
                 highlightedPlayer={highlightedPlayer}
                 onHighlightPlayer={handleHighlightPlayer}
               />
-            </section>
+            </CollapsibleSection>
           )}
 
           <CollapsibleSection
