@@ -45,8 +45,10 @@ import { getScoreForSlot, ScorableMatchCell } from "@/components/scorable-match-
 import { createEventId } from "@/lib/match-scores";
 import {
   areAllMatchesScored,
-  computePlayerScoreTotals,
+  computeFreeScoreRankingGroups,
+  computeTeamScoreRankingGroups,
   hasRecordedScores,
+  hasScoreRankingEntries,
 } from "@/lib/player-score-totals";
 import {
   computeFreeDoubleFaultGroups,
@@ -538,10 +540,27 @@ export function TournamentGenerator() {
     [generated?.playerStats]
   );
 
-  const playerScoreRankings = useMemo(() => {
+  const playerScoreRankingGroups = useMemo(() => {
     if (!generated || !hasRecordedScores(matchScores)) return [];
-    return computePlayerScoreTotals(generated.schedule, matchScores);
+    if (generated.mode === "team" && generated.teamInfo) {
+      return computeTeamScoreRankingGroups(
+        generated.schedule,
+        matchScores,
+        generated.teamInfo
+      );
+    }
+    return [
+      computeFreeScoreRankingGroups(
+        generated.schedule,
+        matchScores,
+        generated.males,
+        generated.females
+      ),
+    ];
   }, [generated, matchScores]);
+
+  const showScoreRankings =
+    playerScoreRankingGroups.length > 0 && hasScoreRankingEntries(playerScoreRankingGroups);
 
   const teamScoreTotals = useMemo(() => {
     if (!generated?.teamInfo || !hasRecordedScores(matchScores)) return [];
@@ -969,16 +988,16 @@ export function TournamentGenerator() {
             </div>
           </section>
 
-          {playerScoreRankings.length > 0 && (
+          {showScoreRankings && (
             <section className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
               <p className="mb-2 text-xs font-semibold text-[var(--muted)]">점수 합산</p>
               {teamScoreTotals.length > 0 && (
                 <TeamScoreSummary teams={teamScoreTotals} allMatchesComplete={allMatchesScored} />
               )}
               <PlayerScoreRanking
-                rankings={playerScoreRankings}
+                groups={playerScoreRankingGroups}
                 males={generated.males}
-                teamInfo={generated.teamInfo}
+                teamMode={generated.mode === "team"}
                 highlightedPlayer={highlightedPlayer}
                 onHighlightPlayer={handleHighlightPlayer}
               />

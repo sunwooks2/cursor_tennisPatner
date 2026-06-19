@@ -1681,12 +1681,14 @@ button.player-score-ranking__name:hover {
   outline: none;
 }
 
+.stats-grouped,
 .double-fault-stats {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
+.stats-grouped__team-title,
 .double-fault-stats__team-title {
   margin: 0 0 0.5rem;
   font-size: 0.9rem;
@@ -1694,12 +1696,14 @@ button.player-score-ranking__name:hover {
   color: var(--text);
 }
 
+.stats-grouped__team-stack,
 .double-fault-stats__team-stack {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
+.stats-grouped__section,
 .double-fault-stats__section {
   min-width: 0;
 }
