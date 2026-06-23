@@ -90,3 +90,45 @@ export function excludeBusyPlayers(players: string[], slotBusy: ReadonlySet<stri
   if (slotBusy.size === 0) return players;
   return players.filter((p) => !slotBusy.has(p));
 }
+
+export type TypeCountRecord = Record<MatchType, number>;
+
+export function emptyTypeCounts(): TypeCountRecord {
+  return { MD: 0, WD: 0, MXD: 0 };
+}
+
+/** 페어 반복(×5)보다 낮고, 상대 반복(×3)과 동급 */
+export const TYPE_BALANCE_PENALTY_WEIGHT = 3;
+
+function typesForPlayer(player: string, males: readonly string[], activeTypes: readonly MatchType[]): MatchType[] {
+  const isMale = males.includes(player);
+  return activeTypes.filter((type) => {
+    if (type === "MD") return isMale;
+    if (type === "WD") return !isMale;
+    return true;
+  });
+}
+
+/**
+ * 선택된 유형이 2개 이상일 때, 선수별 유형 편중(남복만/혼복만 등)을 줄이기 위한 패널티.
+ * 경기 배정 후 각 선수의 참여 가능 유형별 경기수 max−min 합계.
+ */
+export function computeTypeBalancePenalty(
+  players: string[],
+  matchType: MatchType,
+  typeCountByPlayer: ReadonlyMap<string, TypeCountRecord>,
+  activeTypes: readonly MatchType[],
+  males: readonly string[]
+): number {
+  let penalty = 0;
+  for (const player of players) {
+    const playerTypes = typesForPlayer(player, males, activeTypes);
+    if (playerTypes.length < 2) continue;
+
+    const counts = typeCountByPlayer.get(player) ?? emptyTypeCounts();
+    const projected = { ...counts, [matchType]: counts[matchType] + 1 };
+    const values = playerTypes.map((type) => projected[type]);
+    penalty += Math.max(...values) - Math.min(...values);
+  }
+  return penalty;
+}

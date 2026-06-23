@@ -1,6 +1,8 @@
 import {
   buildPlayers,
+  computeTypeBalancePenalty,
   createSlotBusy,
+  emptyTypeCounts,
   excludeBusyPlayers,
   incrementNestedCount,
   isMatchSlotAvailable,
@@ -11,7 +13,9 @@ import {
   parseTypeLabel,
   shuffledCopy,
   toMinute,
+  TYPE_BALANCE_PENALTY_WEIGHT,
   type RandFn,
+  type TypeCountRecord,
 } from "./schedule-common";
 import { typesNeedFemale, typesNeedMale } from "./match-type-gender";
 import { generateTeamSchedule, validateTeamInput } from "./schedule-team";
@@ -37,6 +41,7 @@ interface ScheduleState {
   playCount: Map<string, number>;
   partnerCount: Map<string, number>;
   oppCount: Map<string, number>;
+  typeCountByPlayer: Map<string, TypeCountRecord>;
   matchSet: Set<string>;
 }
 
@@ -46,7 +51,8 @@ function makeMatch(
   females: string[],
   state: ScheduleState,
   rand: RandFn,
-  slotBusy: ReadonlySet<string>
+  slotBusy: ReadonlySet<string>,
+  activeTypes: readonly MatchType[]
 ): MatchCandidate | null {
   const needed =
     type === "MD" ? (["M", "M", "M", "M"] as const) : type === "WD" ? (["F", "F", "F", "F"] as const) : (["M", "M", "F", "F"] as const);
@@ -91,6 +97,13 @@ function makeMatch(
   )
     ? 1000
     : 0;
+  const typeBalancePenalty = computeTypeBalancePenalty(
+    players,
+    type,
+    state.typeCountByPlayer,
+    activeTypes,
+    males
+  );
 
   const projectedCounts = new Map(state.playCount);
   for (const p of players) {
@@ -116,6 +129,7 @@ function makeMatch(
       variancePenalty * 10000 +
       playPenalty * 20 +
       partnerPenalty * 5 +
+      typeBalancePenalty * TYPE_BALANCE_PENALTY_WEIGHT +
       oppPenalty * 3 +
       duplicatePenalty,
   };
@@ -124,6 +138,10 @@ function makeMatch(
 function commitMatch(match: MatchCandidate, state: ScheduleState): void {
   for (const p of match.players) {
     state.playCount.set(p, (state.playCount.get(p) || 0) + 1);
+    if (!state.typeCountByPlayer.has(p)) {
+      state.typeCountByPlayer.set(p, emptyTypeCounts());
+    }
+    state.typeCountByPlayer.get(p)![match.type]++;
   }
   const p1 = pairKey(match.teamA[0], match.teamA[1]);
   const p2 = pairKey(match.teamB[0], match.teamB[1]);
@@ -153,10 +171,14 @@ export function generateFreeSchedule(input: ScheduleInput, seed: number): Genera
     playCount: new Map(),
     partnerCount: new Map(),
     oppCount: new Map(),
+    typeCountByPlayer: new Map(),
     matchSet: new Set(),
   };
 
-  [...males, ...females].forEach((p) => state.playCount.set(p, 0));
+  [...males, ...females].forEach((p) => {
+    state.playCount.set(p, 0);
+    state.typeCountByPlayer.set(p, emptyTypeCounts());
+  });
 
   const schedule: ScheduleMatch[] = [];
   const enforceSlotUnique = input.courtCount >= 2;
@@ -170,7 +192,7 @@ export function generateFreeSchedule(input: ScheduleInput, seed: number): Genera
       const slotBusyForMatch = slotBusy ?? new Set<string>();
       for (const type of typeRotation) {
         for (let i = 0; i < 30; i += 1) {
-          const match = makeMatch(type, males, females, state, rand, slotBusyForMatch);
+          const match = makeMatch(type, males, females, state, rand, slotBusyForMatch, input.types);
           if (match && isMatchSlotAvailable(match.players, slotBusyForMatch)) {
             candidates.push(match);
           }
@@ -199,20 +221,11 @@ export function generateFreeSchedule(input: ScheduleInput, seed: number): Genera
   const minPlay = Math.min(...playCounts);
   const partnerByPlayer = new Map<string, Map<string, number>>();
   const opponentByPlayer = new Map<string, Map<string, number>>();
-  const typeCountByPlayer = new Map<string, Record<MatchType, number>>();
-
-  const emptyTypeCounts = (): Record<MatchType, number> => ({ MD: 0, WD: 0, MXD: 0 });
 
   for (const match of schedule) {
     if (match.empty || !match.teamA || !match.teamB || !match.type) continue;
     const [a1, a2] = match.teamA;
     const [b1, b2] = match.teamB;
-    const players = [a1, a2, b1, b2];
-
-    for (const player of players) {
-      if (!typeCountByPlayer.has(player)) typeCountByPlayer.set(player, emptyTypeCounts());
-      typeCountByPlayer.get(player)![match.type]++;
-    }
 
     incrementNestedCount(partnerByPlayer, a1, a2);
     incrementNestedCount(partnerByPlayer, a2, a1);
@@ -231,7 +244,7 @@ export function generateFreeSchedule(input: ScheduleInput, seed: number): Genera
   const playerStats: PlayerStat[] = allPlayers.map((player) => ({
     player,
     totalMatches: state.playCount.get(player) || 0,
-    typeCounts: typeCountByPlayer.get(player) || emptyTypeCounts(),
+    typeCounts: state.typeCountByPlayer.get(player) || emptyTypeCounts(),
     partners: Object.fromEntries([...(partnerByPlayer.get(player) || new Map())]),
     opponents: Object.fromEntries([...(opponentByPlayer.get(player) || new Map())]),
   }));
