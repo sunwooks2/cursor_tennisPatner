@@ -97,8 +97,11 @@ export function emptyTypeCounts(): TypeCountRecord {
   return { MD: 0, WD: 0, MXD: 0 };
 }
 
-/** 페어 반복(×5)보다 낮고, 상대 반복(×3)과 동급 */
-export const TYPE_BALANCE_PENALTY_WEIGHT = 3;
+/** 페어 반복(×5)보다 낮게 유지 */
+export const TYPE_BALANCE_PENALTY_WEIGHT = 4;
+
+/** 슬롯당 유형별 랜덤 후보 생성 횟수 */
+export const SCHEDULE_CANDIDATE_ATTEMPTS = 60;
 
 function typesForPlayer(player: string, males: readonly string[], activeTypes: readonly MatchType[]): MatchType[] {
   const isMale = males.includes(player);
@@ -110,8 +113,9 @@ function typesForPlayer(player: string, males: readonly string[], activeTypes: r
 }
 
 /**
- * 선택된 유형이 2개 이상일 때, 선수별 유형 편중(남복만/혼복만 등)을 줄이기 위한 패널티.
- * 경기 배정 후 각 선수의 참여 가능 유형별 경기수 max−min 합계.
+ * 선수별 유형 편중 패널티.
+ * - 편중 악화(delta)를 강하게 징벌
+ * - 3:1 이상(newSpread >= 2) 추가 징벌
  */
 export function computeTypeBalancePenalty(
   players: string[],
@@ -126,9 +130,15 @@ export function computeTypeBalancePenalty(
     if (playerTypes.length < 2) continue;
 
     const counts = typeCountByPlayer.get(player) ?? emptyTypeCounts();
+    const oldValues = playerTypes.map((type) => counts[type]);
+    const oldSpread = Math.max(...oldValues) - Math.min(...oldValues);
+
     const projected = { ...counts, [matchType]: counts[matchType] + 1 };
-    const values = playerTypes.map((type) => projected[type]);
-    penalty += Math.max(...values) - Math.min(...values);
+    const newValues = playerTypes.map((type) => projected[type]);
+    const newSpread = Math.max(...newValues) - Math.min(...newValues);
+
+    const worsening = Math.max(0, newSpread - oldSpread);
+    penalty += worsening * 4 + newSpread + (newSpread >= 2 ? newSpread * 3 : 0);
   }
   return penalty;
 }

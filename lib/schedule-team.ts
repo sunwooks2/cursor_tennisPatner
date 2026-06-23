@@ -9,6 +9,7 @@ import {
   makeTimeSlots,
   occupySlotPlayers,
   pairKey,
+  SCHEDULE_CANDIDATE_ATTEMPTS,
   shuffledCopy,
   TYPE_BALANCE_PENALTY_WEIGHT,
   type RandFn,
@@ -242,7 +243,7 @@ export function generateTeamSchedule(input: ScheduleInput, seed: number): Genera
       const typeRotation = shuffledCopy(input.types, rand);
       const slotBusyForMatch = slotBusy ?? new Set<string>();
       for (const type of typeRotation) {
-        for (let i = 0; i < 30; i += 1) {
+        for (let i = 0; i < SCHEDULE_CANDIDATE_ATTEMPTS; i += 1) {
           const match = makeTeamMatch(
             type,
             teamAMales,

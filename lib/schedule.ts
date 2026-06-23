@@ -11,6 +11,7 @@ import {
   occupySlotPlayers,
   pairKey,
   parseTypeLabel,
+  SCHEDULE_CANDIDATE_ATTEMPTS,
   shuffledCopy,
   toMinute,
   TYPE_BALANCE_PENALTY_WEIGHT,
@@ -191,7 +192,7 @@ export function generateFreeSchedule(input: ScheduleInput, seed: number): Genera
       const typeRotation = shuffledCopy(input.types, rand);
       const slotBusyForMatch = slotBusy ?? new Set<string>();
       for (const type of typeRotation) {
-        for (let i = 0; i < 30; i += 1) {
+        for (let i = 0; i < SCHEDULE_CANDIDATE_ATTEMPTS; i += 1) {
           const match = makeMatch(type, males, females, state, rand, slotBusyForMatch, input.types);
           if (match && isMatchSlotAvailable(match.players, slotBusyForMatch)) {
             candidates.push(match);
