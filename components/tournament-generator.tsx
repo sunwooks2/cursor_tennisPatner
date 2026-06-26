@@ -19,7 +19,6 @@ import { GenerationToast } from "@/components/generation-toast";
 import { MatchTypeIcon } from "@/components/match-type-icon";
 import { TennisBallIcon } from "@/components/tennis-ball-icon";
 import { NumberStepper } from "@/components/number-stepper";
-import { PlayerNameInputRow } from "@/components/player-name-input-row";
 import { PlayerMatchCountSummary } from "@/components/player-match-count-summary";
 import { PlayerDoubleFaultStats } from "@/components/player-double-fault-stats";
 import { PlayerScoreRanking } from "@/components/player-score-ranking";
@@ -685,22 +684,6 @@ export function TournamentGenerator() {
     }));
   };
 
-  const handleMaleNameChange = (index: number, name: string) => {
-    setInput((prev) => {
-      const maleNames = [...resizeNames(prev.maleNames, prev.maleCount)];
-      maleNames[index] = name;
-      return { ...prev, maleNames };
-    });
-  };
-
-  const handleFemaleNameChange = (index: number, name: string) => {
-    setInput((prev) => {
-      const femaleNames = [...resizeNames(prev.femaleNames, prev.femaleCount)];
-      femaleNames[index] = name;
-      return { ...prev, femaleNames };
-    });
-  };
-
   const handleModeChange = (mode: ScheduleMode) => {
     setInput((prev) => {
       if (mode === "team") {
@@ -985,33 +968,11 @@ export function TournamentGenerator() {
                     />
                   )}
                 </div>
-                {needsFemale && (
-                  <PlayerNameInputRow
-                    genderLabel="여자"
-                    count={input.femaleCount}
-                    names={input.femaleNames}
-                    placeholderPrefix="여"
-                    keyPrefix="female-name"
-                    onNameChange={handleFemaleNameChange}
-                    className="rounded-lg border border-[var(--line)] bg-[#f8fafc] px-2 py-2"
-                  />
-                )}
-                {needsMale && (
-                  <PlayerNameInputRow
-                    genderLabel="남자"
-                    count={input.maleCount}
-                    names={input.maleNames}
-                    placeholderPrefix="남"
-                    keyPrefix="male-name"
-                    onNameChange={handleMaleNameChange}
-                    className="rounded-lg border border-[var(--line)] bg-[#f8fafc] px-2 py-2"
-                  />
-                )}
-                {input.mode === "manual" && (
-                  <p className="text-sm text-[var(--muted)]">
-                    수동 모드에서는 빈 슬롯만 생성됩니다. 각 코트·시간을 탭해 직접 선수를 배정하세요.
-                  </p>
-                )}
+                <p className="m-0 text-sm text-[var(--muted)]">
+                  대진 생성 후 선수등록에서 이름을 입력하세요.
+                  {input.mode === "manual" &&
+                    " 수동 모드는 빈 슬롯만 생성되며, 코트·시간을 탭해 선수를 배정합니다."}
+                </p>
               </div>
             )
           ) : showTeamRoster ? (
@@ -1031,13 +992,14 @@ export function TournamentGenerator() {
                 onChange={(teamB) => setInput((prev) => ({ ...prev, teamB }))}
               />
               {input.mode === "team" ? (
-                <p className="text-sm text-[var(--muted)]">
-                  팀 인원이 다르면 인원이 적은 팀 선수에게 경기가 더 많이 배정될 수 있습니다. 가능한 범위에서
-                  개인별 경기 수를 균등하게 맞춥니다.
+                <p className="m-0 text-sm text-[var(--muted)]">
+                  대진 생성 후 선수등록에서 선수 이름을 입력하세요. 팀 인원이 다르면 인원이 적은 팀
+                  선수에게 경기가 더 많이 배정될 수 있습니다.
                 </p>
               ) : (
-                <p className="text-sm text-[var(--muted)]">
-                  수동 모드에서는 빈 슬롯만 생성됩니다. 각 코트·시간을 탭해 직접 선수를 배정하세요.
+                <p className="m-0 text-sm text-[var(--muted)]">
+                  대진 생성 후 선수등록에서 선수 이름을 입력하세요. 수동 모드는 빈 슬롯만 생성되며,
+                  코트·시간을 탭해 선수를 배정합니다.
                 </p>
               )}
             </div>

@@ -1,8 +1,6 @@
 "use client";
 
 import { NumberStepper } from "@/components/number-stepper";
-import { PlayerNameInputRow } from "@/components/player-name-input-row";
-import { getTeamFemalePrefix, getTeamMalePrefix } from "@/lib/team-stats";
 import type { TeamRoster } from "@/lib/types";
 
 function resizeNames(names: string[], count: number): string[] {
@@ -26,9 +24,6 @@ export function TeamRosterForm({
   highlighted = false,
 }: TeamRosterFormProps) {
   const update = (patch: Partial<TeamRoster>) => onChange({ ...roster, ...patch });
-  const malePrefix = getTeamMalePrefix(roster.name);
-  const femalePrefix = getTeamFemalePrefix(roster.name);
-  const sectionKey = roster.name.trim() || "team-section";
 
   return (
     <div className="rounded-lg border border-[var(--line)] bg-[#f8fafc] px-3 py-2.5">
@@ -44,64 +39,32 @@ export function TeamRosterForm({
         />
       </label>
 
-      <div className="flex flex-col gap-2">
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4 [&>*]:min-w-0">
-          {showFemale && (
-            <NumberStepper
-              label="여성 인원"
-              value={roster.femaleCount}
-              min={0}
-              onChange={(femaleCount) =>
-                update({
-                  femaleCount,
-                  femaleNames: resizeNames(roster.femaleNames, femaleCount),
-                })
-              }
-            />
-          )}
-          {showMale && (
-            <NumberStepper
-              label="남성 인원"
-              value={roster.maleCount}
-              min={0}
-              highlighted={highlighted}
-              onChange={(maleCount) =>
-                update({
-                  maleCount,
-                  maleNames: resizeNames(roster.maleNames, maleCount),
-                })
-              }
-            />
-          )}
-        </div>
-
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 [&>*]:min-w-0">
         {showFemale && (
-          <PlayerNameInputRow
-            genderLabel="여자"
-            count={roster.femaleCount}
-            names={roster.femaleNames}
-            placeholderPrefix={femalePrefix}
-            keyPrefix={`${sectionKey}-female`}
-            onNameChange={(index, value) => {
-              const femaleNames = [...resizeNames(roster.femaleNames, roster.femaleCount)];
-              femaleNames[index] = value;
-              update({ femaleNames });
-            }}
+          <NumberStepper
+            label="여성 인원"
+            value={roster.femaleCount}
+            min={0}
+            onChange={(femaleCount) =>
+              update({
+                femaleCount,
+                femaleNames: resizeNames(roster.femaleNames, femaleCount),
+              })
+            }
           />
         )}
-
         {showMale && (
-          <PlayerNameInputRow
-            genderLabel="남자"
-            count={roster.maleCount}
-            names={roster.maleNames}
-            placeholderPrefix={malePrefix}
-            keyPrefix={`${sectionKey}-male`}
-            onNameChange={(index, value) => {
-              const maleNames = [...resizeNames(roster.maleNames, roster.maleCount)];
-              maleNames[index] = value;
-              update({ maleNames });
-            }}
+          <NumberStepper
+            label="남성 인원"
+            value={roster.maleCount}
+            min={0}
+            highlighted={highlighted}
+            onChange={(maleCount) =>
+              update({
+                maleCount,
+                maleNames: resizeNames(roster.maleNames, maleCount),
+              })
+            }
           />
         )}
       </div>
