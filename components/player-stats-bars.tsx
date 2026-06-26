@@ -55,7 +55,7 @@ function CountBars({
       <div className="space-y-2">
         {entries.map(([name, count]) => {
           const width =
-            count > 0 && maxCount > 0 ? Math.max((count / maxCount) * 100, 8) : 0;
+            count > 0 && maxCount > 0 ? (count / maxCount) * 100 : 0;
           return (
             <div key={name} className="flex items-center gap-2">
               <span
@@ -68,8 +68,8 @@ function CountBars({
               <div className="relative h-5 flex-1 overflow-hidden rounded bg-[#eef2f8]">
                 {count > 0 ? (
                   <div
-                    className="flex h-full items-center rounded bg-[var(--primary)] px-1.5 text-[0.7rem] font-semibold text-[var(--primary-foreground)]"
-                    style={{ width: `${width}%`, minWidth: "2rem" }}
+                    className="flex h-full min-w-0 items-center rounded bg-[var(--primary)] px-1.5 text-[0.7rem] font-semibold text-[var(--primary-foreground)]"
+                    style={{ width: `${width}%` }}
                   >
                     {count}회
                   </div>
@@ -120,6 +120,7 @@ export function PlayerStatsBars({
   );
   const maxPartner = maxEntryCount(partnerEntriesList);
   const maxOpponent = maxEntryCount(opponentEntriesList);
+  const maxCount = Math.max(maxPartner, maxOpponent, 1);
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -150,13 +151,13 @@ export function PlayerStatsBars({
             <CountBars
               title={isTeamMode ? "페어" : "페어 상대"}
               entries={partnerEntriesList[index]}
-              maxCount={maxPartner}
+              maxCount={maxCount}
               males={males}
             />
             <CountBars
               title={isTeamMode ? "상대" : "상대 팀원"}
               entries={opponentEntriesList[index]}
-              maxCount={maxOpponent}
+              maxCount={maxCount}
               males={males}
             />
           </div>
