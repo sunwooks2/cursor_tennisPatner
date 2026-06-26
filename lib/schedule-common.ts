@@ -1,4 +1,4 @@
-import type { MatchType } from "./types";
+import type { MatchType, ScheduleMatch } from "./types";
 
 export type RandFn = () => number;
 
@@ -102,6 +102,119 @@ export const TYPE_BALANCE_PENALTY_WEIGHT = 4;
 
 /** 슬롯당 유형별 랜덤 후보 생성 횟수 */
 export const SCHEDULE_CANDIDATE_ATTEMPTS = 60;
+
+/** 코트별 유형 고정 선호(페어×5, 유형균형×4보다 낮음) */
+export const COURT_TYPE_PENALTY_WEIGHT = 3;
+
+/**
+ * 코트별 선호 유형 배정.
+ * - 코트 수 >= 유형 수: 유형 순서대로 1코트씩, 남는 코트는 마지막 유형
+ * - 코트 수 < 유형 수: 앞 코트부터 유형 순서대로 1:1
+ */
+export function buildCourtPreferredTypes(
+  courtCount: number,
+  types: readonly MatchType[]
+): MatchType[] {
+  if (courtCount <= 0 || types.length === 0) return [];
+
+  const preferences: MatchType[] = [];
+  for (let i = 0; i < types.length && preferences.length < courtCount; i += 1) {
+    preferences.push(types[i]);
+  }
+  const overflowType = types[types.length - 1];
+  while (preferences.length < courtCount) {
+    preferences.push(overflowType);
+  }
+  return preferences;
+}
+
+export function shouldPinCourtTypes(courtCount: number, typeCount: number): boolean {
+  return courtCount >= 2 && typeCount >= 2;
+}
+
+export function computeCourtTypePenalty(
+  matchType: MatchType,
+  preferredCourtType: MatchType | undefined
+): number {
+  if (!preferredCourtType || matchType === preferredCourtType) return 0;
+  return 1;
+}
+
+/** 코트 선호 유형을 먼저 시도하도록 유형 순서 구성 */
+export function orderTypesForCourt(
+  types: readonly MatchType[],
+  preferredType: MatchType | undefined,
+  rand: RandFn
+): MatchType[] {
+  if (!preferredType) return shuffledCopy([...types], rand);
+  const rest = shuffledCopy(
+    types.filter((type) => type !== preferredType),
+    rand
+  );
+  return [preferredType, ...rest];
+}
+
+function courtTypeMatchScore(match: ScheduleMatch, preferredType: MatchType): number {
+  if (match.empty || !match.type) return 0;
+  return match.type === preferredType ? 1 : 0;
+}
+
+/** 같은 시간대 경기들의 코트 번호를 재배치해 선호 유형과 최대한 맞춤 */
+export function optimizeCourtAssignmentsPerSlot(
+  schedule: ScheduleMatch[],
+  courtCount: number,
+  courtPreferredTypes: readonly MatchType[]
+): void {
+  if (courtPreferredTypes.length === 0 || courtCount < 2) return;
+
+  const byTime = new Map<string, ScheduleMatch[]>();
+  for (const match of schedule) {
+    const bucket = byTime.get(match.time);
+    if (bucket) bucket.push(match);
+    else byTime.set(match.time, [match]);
+  }
+
+  for (const slotMatches of byTime.values()) {
+    if (slotMatches.length <= 1) continue;
+
+    const n = slotMatches.length;
+    const indices = Array.from({ length: n }, (_, i) => i);
+    let bestScore = -1;
+    let bestOrder = indices;
+
+    function search(order: number[], depth: number): void {
+      if (depth === n) {
+        let score = 0;
+        for (let court = 0; court < n; court += 1) {
+          score += courtTypeMatchScore(
+            slotMatches[order[court]],
+            courtPreferredTypes[court] ?? courtPreferredTypes[courtPreferredTypes.length - 1]
+          );
+        }
+        if (score > bestScore) {
+          bestScore = score;
+          bestOrder = [...order];
+        }
+        return;
+      }
+      for (let i = depth; i < n; i += 1) {
+        [order[depth], order[i]] = [order[i], order[depth]];
+        search(order, depth + 1);
+        [order[depth], order[i]] = [order[i], order[depth]];
+      }
+    }
+
+    search(indices, 0);
+
+    const reassigned = bestOrder.map((matchIdx, courtIdx) => ({
+      match: slotMatches[matchIdx],
+      court: courtIdx + 1,
+    }));
+    for (const { match, court } of reassigned) {
+      match.court = court;
+    }
+  }
+}
 
 function typesForPlayer(player: string, males: readonly string[], activeTypes: readonly MatchType[]): MatchType[] {
   const isMale = males.includes(player);

@@ -1,6 +1,9 @@
 import {
+  buildCourtPreferredTypes,
+  computeCourtTypePenalty,
   computeTypeBalancePenalty,
   createSlotBusy,
+  COURT_TYPE_PENALTY_WEIGHT,
   emptyTypeCounts,
   excludeBusyPlayers,
   incrementNestedCount,
@@ -8,8 +11,11 @@ import {
   makeRng,
   makeTimeSlots,
   occupySlotPlayers,
+  optimizeCourtAssignmentsPerSlot,
+  orderTypesForCourt,
   pairKey,
   SCHEDULE_CANDIDATE_ATTEMPTS,
+  shouldPinCourtTypes,
   shuffledCopy,
   TYPE_BALANCE_PENALTY_WEIGHT,
   type RandFn,
@@ -63,7 +69,8 @@ function makeTeamMatch(
   rand: RandFn,
   slotBusy: ReadonlySet<string>,
   activeTypes: readonly MatchType[],
-  allMales: readonly string[]
+  allMales: readonly string[],
+  preferredCourtType?: MatchType
 ): MatchCandidate | null {
   let teamA: [string, string];
   let teamB: [string, string];
@@ -112,6 +119,7 @@ function makeTeamMatch(
     activeTypes,
     allMales
   );
+  const courtTypePenalty = computeCourtTypePenalty(type, preferredCourtType);
 
   const projectedCounts = new Map(state.playCount);
   for (const p of players) {
@@ -138,6 +146,7 @@ function makeTeamMatch(
       playPenalty * 20 +
       partnerPenalty * 5 +
       typeBalancePenalty * TYPE_BALANCE_PENALTY_WEIGHT +
+      courtTypePenalty * COURT_TYPE_PENALTY_WEIGHT +
       oppPenalty * 3 +
       duplicatePenalty,
   };
@@ -234,13 +243,18 @@ export function generateTeamSchedule(input: ScheduleInput, seed: number): Genera
 
   const schedule: ScheduleMatch[] = [];
   const enforceSlotUnique = input.courtCount >= 2;
+  const pinCourtTypes = shouldPinCourtTypes(input.courtCount, input.types.length);
+  const courtPreferredTypes = pinCourtTypes
+    ? buildCourtPreferredTypes(input.courtCount, input.types)
+    : [];
 
   for (const time of slots) {
     const slotBusy = enforceSlotUnique ? createSlotBusy() : null;
 
     for (let court = 1; court <= input.courtCount; court += 1) {
       const candidates: MatchCandidate[] = [];
-      const typeRotation = shuffledCopy(input.types, rand);
+      const preferredCourtType = pinCourtTypes ? courtPreferredTypes[court - 1] : undefined;
+      const typeRotation = orderTypesForCourt(input.types, preferredCourtType, rand);
       const slotBusyForMatch = slotBusy ?? new Set<string>();
       for (const type of typeRotation) {
         for (let i = 0; i < SCHEDULE_CANDIDATE_ATTEMPTS; i += 1) {
@@ -254,7 +268,8 @@ export function generateTeamSchedule(input: ScheduleInput, seed: number): Genera
             rand,
             slotBusyForMatch,
             input.types,
-            allMales
+            allMales,
+            preferredCourtType
           );
           if (match && isMatchSlotAvailable(match.players, slotBusyForMatch)) {
             candidates.push(match);
@@ -277,6 +292,10 @@ export function generateTeamSchedule(input: ScheduleInput, seed: number): Genera
         teamB: winner.teamB,
       });
     }
+  }
+
+  if (pinCourtTypes) {
+    optimizeCourtAssignmentsPerSlot(schedule, input.courtCount, courtPreferredTypes);
   }
 
   const playCounts = [...state.playCount.values()];
