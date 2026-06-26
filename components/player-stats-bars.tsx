@@ -104,17 +104,18 @@ export function PlayerStatsBars({
     return <p className="text-sm text-[var(--muted)]">참가자가 없습니다.</p>;
   }
 
-  const isTeamMode = mode === "team" && teamInfo;
+  const isTeamMode = Boolean(teamInfo);
   const allPlayers = stats.map((s) => s.player);
+  const team = teamInfo!;
 
   const partnerEntriesList = stats.map((stat) =>
     isTeamMode
-      ? buildRelationCounts(stat.player, getSameTeamPlayers(stat.player, teamInfo), stat.partners)
+      ? buildRelationCounts(stat.player, getSameTeamPlayers(stat.player, team), stat.partners)
       : buildFullCounts(stat.player, allPlayers, stat.partners)
   );
   const opponentEntriesList = stats.map((stat) =>
     isTeamMode
-      ? buildRelationCounts(stat.player, getOpposingTeamPlayers(stat.player, teamInfo), stat.opponents)
+      ? buildRelationCounts(stat.player, getOpposingTeamPlayers(stat.player, team), stat.opponents)
       : buildFullCounts(stat.player, allPlayers, stat.opponents)
   );
   const maxPartner = maxEntryCount(partnerEntriesList);

@@ -162,6 +162,13 @@ body {
   background: #f4f7fb;
 }
 
+.mode-segment-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .mode-segment {
   border: none;
   border-radius: 0.5rem;
@@ -185,6 +192,18 @@ body {
   background: #fff;
   color: var(--text);
   box-shadow: 0 1px 3px rgba(24, 36, 51, 0.08);
+}
+
+.mode-segmented--compact {
+  gap: 0.125rem;
+  padding: 0.125rem;
+  border-radius: 0.5rem;
+}
+
+.mode-segment--compact {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.75rem;
+  border-radius: 0.375rem;
 }
 
 .type-chip-group {
@@ -447,7 +466,7 @@ body {
 }
 
 @media (max-width: 767px) {
-  .schedule-match-line {
+  .schedule-match-line:not(.schedule-match-line--compact) {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     column-gap: 0.5rem;
@@ -455,26 +474,26 @@ body {
     align-items: center;
   }
 
-  .schedule-match-line__badge {
+  .schedule-match-line:not(.schedule-match-line--compact) .schedule-match-line__badge {
     grid-column: 1;
     grid-row: 1 / 3;
     align-self: center;
   }
 
-  .schedule-match-line__body {
+  .schedule-match-line:not(.schedule-match-line--compact) .schedule-match-line__body {
     display: contents;
   }
 
-  .schedule-match-line__side-a {
+  .schedule-match-line:not(.schedule-match-line--compact) .schedule-match-line__side-a {
     grid-column: 2;
     grid-row: 1;
   }
 
-  .schedule-match-line__vs {
+  .schedule-match-line:not(.schedule-match-line--compact) .schedule-match-line__vs {
     display: none;
   }
 
-  .schedule-match-line__side-b {
+  .schedule-match-line:not(.schedule-match-line--compact) .schedule-match-line__side-b {
     grid-column: 2;
     grid-row: 2;
   }
@@ -1032,6 +1051,30 @@ input[type="time"].form-control-input::-webkit-calendar-picker-indicator {
   white-space: nowrap;
 }
 
+.scorable-match-cell--split {
+  cursor: default;
+}
+
+.scorable-match-cell__match-btn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 0.5rem;
+}
+
+.scorable-match-cell__match-btn:hover {
+  background: #f4f8fc;
+}
+
+.scorable-match-cell--pending {
+  border: 1px dashed #d7e2ef;
+  border-radius: 0.5rem;
+  background: #fafcff;
+  padding: 0.25rem 0.375rem;
+}
+
 .match-score-badge {
   display: inline-flex;
   align-items: center;
@@ -1570,6 +1613,52 @@ button.player-score-ranking__name:hover {
 
 .player-registration-panel {
   width: min(100%, 24rem);
+}
+
+.manual-match-sheet-panel {
+  width: min(100%, 32rem);
+}
+
+.manual-match-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.75rem;
+}
+
+.type-chip--compact {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.78rem;
+}
+
+.manual-match-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.75rem;
+}
+
+.manual-match-select {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: #fff;
+  padding: 0.4rem 0.35rem;
+  font-size: 0.78rem;
+  line-height: 1.2;
+}
+
+.manual-match-select--empty {
+  color: var(--muted);
+}
+
+.manual-match-vs {
+  flex-shrink: 0;
+  padding: 0 0.125rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--muted);
 }
 
 .player-registration-hint {

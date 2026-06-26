@@ -34,7 +34,7 @@ function buildGroups(
   teamInfo?: TeamScheduleInfo,
   males: string[] = []
 ): PlayerGroup[] {
-  if (mode === "team" && teamInfo) {
+  if (teamInfo) {
     const toChips = (list: string[], teamName: string): PlayerChip[] =>
       list.map((player) => ({
         key: player,

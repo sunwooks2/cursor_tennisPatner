@@ -162,7 +162,7 @@ function DoubleFaultInput({
 function sideLabels(target: ScoreEditorTarget, teamInfo?: TeamScheduleInfo): { a: SideLabel; b: SideLabel } {
   const { match } = target;
   if (!match.teamA || !match.teamB) {
-    return { a: { kind: "plain", text: "A" }, b: { kind: "plain", text: "B" } };
+    return { a: { kind: "plain", text: "—" }, b: { kind: "plain", text: "—" } };
   }
 
   const teamDisplay = teamInfo ? parseTeamMatchDisplay(match, teamInfo) : null;
@@ -182,8 +182,8 @@ function sideLabels(target: ScoreEditorTarget, teamInfo?: TeamScheduleInfo): { a
   }
 
   return {
-    a: { kind: "plain", text: `${match.teamA[0]}·${match.teamA[1]}` },
-    b: { kind: "plain", text: `${match.teamB[0]}·${match.teamB[1]}` },
+    a: { kind: "plain", text: `${match.teamA[0]} ${match.teamA[1]}` },
+    b: { kind: "plain", text: `${match.teamB[0]} ${match.teamB[1]}` },
   };
 }
 
@@ -200,11 +200,20 @@ function playerLabels(target: ScoreEditorTarget, teamInfo?: TeamScheduleInfo) {
     };
   }
 
+  if (!match.teamA || !match.teamB) {
+    return {
+      teamAName: "",
+      teamBName: "",
+      teamA: ["", ""] as [string, string],
+      teamB: ["", ""] as [string, string],
+    };
+  }
+
   return {
-    teamAName: "A",
-    teamBName: "B",
-    teamA: [match.teamA?.[0] ?? "선수1", match.teamA?.[1] ?? "선수2"] as [string, string],
-    teamB: [match.teamB?.[0] ?? "선수3", match.teamB?.[1] ?? "선수4"] as [string, string],
+    teamAName: `${match.teamA[0]} ${match.teamA[1]}`,
+    teamBName: `${match.teamB[0]} ${match.teamB[1]}`,
+    teamA: [match.teamA[0], match.teamA[1]] as [string, string],
+    teamB: [match.teamB[0], match.teamB[1]] as [string, string],
   };
 }
 

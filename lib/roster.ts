@@ -6,10 +6,11 @@ import {
   stripTeamPrefixFromPlayerName,
 } from "@/lib/team-stats";
 import { typesNeedFemale, typesNeedMale } from "@/lib/match-type-gender";
-import type { ScheduleInput, TeamRoster } from "@/lib/types";
+import type { ManualLayout, ScheduleInput, TeamRoster } from "@/lib/types";
 
 export interface EventRoster {
   mode: "free" | "team";
+  manualLayout?: ManualLayout;
   maleNames?: string[];
   femaleNames?: string[];
   teamA?: Pick<TeamRoster, "name" | "maleNames" | "femaleNames">;
@@ -28,22 +29,34 @@ function mergeTeamRosterNames(
 ): TeamRoster {
   if (!source) return target;
 
+  const maleCount = source.maleNames?.length
+    ? Math.max(target.maleCount, source.maleNames.length)
+    : target.maleCount;
+  const femaleCount = source.femaleNames?.length
+    ? Math.max(target.femaleCount, source.femaleNames.length)
+    : target.femaleCount;
+
   return {
     ...target,
     name: source.name?.trim() ? source.name.trim() : target.name,
+    maleCount,
+    femaleCount,
     maleNames: source.maleNames
-      ? resizeNames(source.maleNames, target.maleCount)
+      ? resizeNames(source.maleNames, maleCount)
       : target.maleNames,
     femaleNames: source.femaleNames
-      ? resizeNames(source.femaleNames, target.femaleCount)
+      ? resizeNames(source.femaleNames, femaleCount)
       : target.femaleNames,
   };
 }
 
 export function rosterFromInput(input: ScheduleInput): EventRoster {
-  if (input.mode === "team") {
+  const layout = input.mode === "manual" ? input.manualLayout : input.mode;
+
+  if (layout === "team") {
     return {
       mode: "team",
+      manualLayout: input.mode === "manual" ? input.manualLayout : undefined,
       teamA: {
         name: input.teamA.name,
         maleNames: input.teamA.maleNames.map((name) =>
@@ -67,15 +80,19 @@ export function rosterFromInput(input: ScheduleInput): EventRoster {
 
   return {
     mode: "free",
+    manualLayout: input.mode === "manual" ? input.manualLayout : undefined,
     maleNames: [...input.maleNames],
     femaleNames: [...input.femaleNames],
   };
 }
 
 export function mergeRosterIntoInput(input: ScheduleInput, roster: EventRoster | null): ScheduleInput {
-  if (!roster || roster.mode !== input.mode) return input;
+  if (!roster) return input;
 
-  if (input.mode === "team") {
+  const inputLayout: ManualLayout = input.mode === "manual" ? input.manualLayout : input.mode;
+  if (roster.mode !== inputLayout) return input;
+
+  if (roster.mode === "team") {
     return {
       ...input,
       teamA: mergeTeamRosterNames(input.teamA, roster.teamA),
@@ -83,13 +100,22 @@ export function mergeRosterIntoInput(input: ScheduleInput, roster: EventRoster |
     };
   }
 
+  const maleCount = roster.maleNames?.length
+    ? Math.max(input.maleCount, roster.maleNames.length)
+    : input.maleCount;
+  const femaleCount = roster.femaleNames?.length
+    ? Math.max(input.femaleCount, roster.femaleNames.length)
+    : input.femaleCount;
+
   return {
     ...input,
+    maleCount,
+    femaleCount,
     maleNames: roster.maleNames
-      ? resizeNames(roster.maleNames, input.maleCount)
+      ? resizeNames(roster.maleNames, maleCount)
       : input.maleNames,
     femaleNames: roster.femaleNames
-      ? resizeNames(roster.femaleNames, input.femaleCount)
+      ? resizeNames(roster.femaleNames, femaleCount)
       : input.femaleNames,
   };
 }
@@ -130,7 +156,9 @@ function teamRegistrationFields(
 }
 
 export function buildRegistrationFields(input: ScheduleInput): RegistrationField[] {
-  if (input.mode === "team") {
+  const layout = input.mode === "manual" ? input.manualLayout : input.mode;
+
+  if (layout === "team") {
     return [
       ...teamRegistrationFields("teamA", input.teamA, input.types),
       ...teamRegistrationFields("teamB", input.teamB, input.types),
@@ -170,7 +198,9 @@ export function applyRegistrationFields(
 ): ScheduleInput {
   const valueById = new Map(fields.map((field) => [field.id, field.value.trim()]));
 
-  if (input.mode === "team") {
+  const layout = input.mode === "manual" ? input.manualLayout : input.mode;
+
+  if (layout === "team") {
     const applySide = (sideKey: "teamA" | "teamB", roster: TeamRoster): TeamRoster => {
       const maleNames = [...roster.maleNames];
       const femaleNames = [...roster.femaleNames];

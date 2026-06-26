@@ -65,9 +65,9 @@ function PlayerPair({
   className?: string;
 }) {
   return (
-    <span className={`schedule-match-line__side min-w-0 text-[var(--text)] ${className}`.trim()}>
+    <span className={`schedule-match-line__side min-w-0 whitespace-nowrap text-[var(--text)] ${className}`.trim()}>
       <HighlightablePlayerName name={players[0]} highlightedPlayer={highlightedPlayer} />
-      <span aria-hidden>·</span>
+      {" "}
       <HighlightablePlayerName name={players[1]} highlightedPlayer={highlightedPlayer} />
     </span>
   );
@@ -116,7 +116,7 @@ function FreeMatchLine({
   if (!match.teamA || !match.teamB || !match.type) return null;
 
   return (
-    <div className="schedule-match-line m-0 text-[0.8rem] leading-snug">
+    <div className="schedule-match-line schedule-match-line--compact m-0 text-[0.8rem] leading-snug">
       <MatchTypeBadge type={match.type} label={parseTypeLabel(match.type)} />
       <div className="schedule-match-line__body">
         <PlayerPair
@@ -145,6 +145,10 @@ export function ScheduleMatchView({
 }: ScheduleMatchViewProps) {
   if (!match || match.empty) {
     return <span className="text-sm text-[var(--muted)]">배정 불가</span>;
+  }
+
+  if (match.pending) {
+    return <span className="text-sm font-semibold text-[var(--muted)]">선수 배정</span>;
   }
 
   const teamDisplay = teamInfo ? parseTeamMatchDisplay(match, teamInfo) : null;

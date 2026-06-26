@@ -1,6 +1,7 @@
 import { isRestSlotForPlayer, matchIncludesPlayer } from "@/lib/match-highlight";
 import { RestTimeView } from "@/components/rest-time-view";
-import { getScoreForSlot, ScorableMatchCell } from "@/components/scorable-match-cell";
+import { getScoreForSlot, ScheduleSlotCell } from "@/components/schedule-slot-cell";
+import type { ManualMatchTarget } from "@/components/manual-match-sheet";
 import type { ScoreEditorTarget } from "@/components/match-score-sheet";
 import type { MatchScores } from "@/lib/match-scores";
 import type { ScheduleMatch, TeamScheduleInfo } from "@/lib/types";
@@ -12,7 +13,9 @@ interface MobileScheduleByTimeProps {
   highlightedPlayer: string | null;
   highlightActive: boolean;
   matchScores: MatchScores;
+  manualMode?: boolean;
   onEditScore: (target: ScoreEditorTarget) => void;
+  onEditManual?: (target: ManualMatchTarget) => void;
 }
 
 export function MobileScheduleByTime({
@@ -22,7 +25,9 @@ export function MobileScheduleByTime({
   highlightedPlayer,
   highlightActive,
   matchScores,
+  manualMode = false,
   onEditScore,
+  onEditManual,
 }: MobileScheduleByTimeProps) {
   const showCourtLabel = visibleCourts.length > 1;
 
@@ -82,14 +87,16 @@ export function MobileScheduleByTime({
                     </span>
                   )}
                   <div className="min-w-0 flex-1">
-                    <ScorableMatchCell
+                    <ScheduleSlotCell
                       time={time}
                       court={court}
                       match={match}
                       teamInfo={teamInfo}
                       highlightedPlayer={highlightActive ? highlightedPlayer : null}
                       score={getScoreForSlot(matchScores, time, court)}
+                      manualMode={manualMode}
                       onEditScore={onEditScore}
+                      onEditManual={onEditManual}
                     />
                   </div>
                 </div>

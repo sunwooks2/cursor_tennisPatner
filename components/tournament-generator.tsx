@@ -41,7 +41,8 @@ import {
 import { formatMaxCourtsHint } from "@/lib/court-capacity";
 import { MatchScoreSheet, type ScoreEditorTarget } from "@/components/match-score-sheet";
 import { PlayerRegistrationSheet } from "@/components/player-registration-sheet";
-import { getScoreForSlot, ScorableMatchCell } from "@/components/scorable-match-cell";
+import { ManualMatchSheet, type ManualMatchTarget } from "@/components/manual-match-sheet";
+import { getScoreForSlot, ScheduleSlotCell } from "@/components/schedule-slot-cell";
 import { createEventId } from "@/lib/match-scores";
 import {
   areAllMatchesScored,
@@ -72,7 +73,14 @@ import {
 } from "@/lib/generation-feedback";
 import { trackEvent } from "@/lib/track-event";
 import { fetchEventRoster, saveEventRoster } from "@/lib/roster-api";
+import { fetchEventSchedule, saveEventSchedule } from "@/lib/schedule-api";
 import { mergeRosterIntoInput, rosterFromInput } from "@/lib/roster";
+import {
+  isTeamStyleSchedule,
+  parseManualSchedule,
+  rebuildManualGenerated,
+  validateManualMatchAssignment,
+} from "@/lib/schedule-manual";
 import { typesNeedFemale, typesNeedMale } from "@/lib/match-type-gender";
 import {
   addHoursToTime,
@@ -80,7 +88,14 @@ import {
   inferDurationHours,
   type DurationHours,
 } from "@/lib/schedule-duration";
-import type { CourtFilter, GeneratedSchedule, MatchType, ScheduleInput, ScheduleMode } from "@/lib/types";
+import type {
+  CourtFilter,
+  GeneratedSchedule,
+  ManualLayout,
+  MatchType,
+  ScheduleInput,
+  ScheduleMode,
+} from "@/lib/types";
 
 const TYPE_OPTIONS: { value: MatchType; label: string }[] = [
   { value: "WD", label: "여자복식" },
@@ -89,6 +104,12 @@ const TYPE_OPTIONS: { value: MatchType; label: string }[] = [
 ];
 
 const MODE_OPTIONS: { value: ScheduleMode; label: string }[] = [
+  { value: "free", label: "기본" },
+  { value: "team", label: "팀전" },
+  { value: "manual", label: "수동" },
+];
+
+const MANUAL_LAYOUT_OPTIONS: { value: ManualLayout; label: string }[] = [
   { value: "free", label: "기본" },
   { value: "team", label: "팀전" },
 ];
@@ -114,6 +135,9 @@ export function TournamentGenerator() {
   const [registrationOpen, setRegistrationOpen] = useState(false);
   const [rosterSaving, setRosterSaving] = useState(false);
   const [scoreEditor, setScoreEditor] = useState<ScoreEditorTarget | null>(null);
+  const [manualEditor, setManualEditor] = useState<ManualMatchTarget | null>(null);
+  const [manualSaving, setManualSaving] = useState(false);
+  const [sharedLoadError, setSharedLoadError] = useState<string | null>(null);
   const actionBtnRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
   const printExportRef = useRef<HTMLDivElement>(null);
@@ -160,7 +184,15 @@ export function TournamentGenerator() {
       setCourtFilter("ALL");
       setHighlightedPlayer(null);
       setScoreEditor(null);
+      setManualEditor(null);
       setGenerated(result);
+      if (nextInput.mode === "manual") {
+        void saveEventSchedule(eid, {
+          mode: "manual",
+          manualLayout: nextInput.manualLayout,
+          schedule: result.schedule,
+        }).catch(() => {});
+      }
       if (feedback) {
         triggerGenerationFeedback(feedback, result);
       }
@@ -179,6 +211,7 @@ export function TournamentGenerator() {
       const { input: parsedInput, seed: parsedSeed } = parseInputFromSearchParams(searchParams);
       const parsedEventId = parseEventIdFromSearchParams(searchParams);
       let mergedInput = parsedInput;
+      let rosterLoaded = false;
 
       if (parsedEventId) {
         try {
@@ -186,6 +219,7 @@ export function TournamentGenerator() {
           if (roster) {
             mergedInput = mergeRosterIntoInput(parsedInput, roster);
             rosterSnapshotRef.current = JSON.stringify(roster);
+            rosterLoaded = true;
           }
         } catch {
           // roster fetch failure should not block schedule view
@@ -199,8 +233,42 @@ export function TournamentGenerator() {
       if (parsedEventId) {
         setEventId(parsedEventId);
       }
-      if (searchParams.has("seed") && !validateInput(mergedInput)) {
+
+      const validationError = validateInput(mergedInput);
+      const isManualShared = mergedInput.mode === "manual" && parsedEventId;
+      const isAutoShared =
+        searchParams.has("seed") && mergedInput.mode !== "manual" && Boolean(parsedEventId);
+
+      if (isManualShared) {
+        if (validationError) {
+          setSharedLoadError(
+            rosterLoaded
+              ? validationError
+              : "선수 등록 정보를 불러오지 못했습니다. 공유 링크를 다시 확인하거나 잠시 후 다시 시도해주세요."
+          );
+        } else {
+          try {
+            const base = generateSchedule(mergedInput, parsedSeed);
+            let schedule = base.schedule;
+            try {
+              const persisted = await fetchEventSchedule(parsedEventId);
+              if (persisted?.schedule) {
+                const parsed = parseManualSchedule(persisted.schedule);
+                if (parsed) schedule = parsed;
+              }
+            } catch {
+              // schedule fetch failure should not block view
+            }
+            setSeed(parsedSeed);
+            setGenerated(rebuildManualGenerated(base, schedule, mergedInput));
+          } catch {
+            setSharedLoadError("대진표를 불러오지 못했습니다.");
+          }
+        }
+      } else if (searchParams.has("seed") && mergedInput.mode !== "manual" && !validationError) {
         runGenerate(mergedInput, parsedSeed, undefined, parsedEventId);
+      } else if (isAutoShared && validationError) {
+        setSharedLoadError(validationError);
       }
       setInitialized(true);
     }
@@ -223,6 +291,13 @@ export function TournamentGenerator() {
         if (!roster) return;
 
         const merged = mergeRosterIntoInput(inputRef.current, roster);
+        if (inputRef.current.mode === "manual") {
+          setInput(merged);
+          setGenerated((prev) =>
+            prev ? rebuildManualGenerated(prev, prev.schedule, merged) : prev
+          );
+          return;
+        }
         runGenerate(merged, seedRef.current, undefined, eventId);
       } catch {
         // ignore background refresh errors
@@ -242,8 +317,8 @@ export function TournamentGenerator() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     trackEvent("page_view", {
-      shared: params.has("seed"),
-      mode: params.get("mode") === "team" ? "team" : "free",
+      shared: params.has("seed") || (params.get("mode") === "manual" && params.has("eid")),
+      mode: params.get("mode") === "team" ? "team" : params.get("mode") === "manual" ? "manual" : "free",
     });
   }, []);
 
@@ -302,7 +377,14 @@ export function TournamentGenerator() {
       alert("먼저 대진을 생성해주세요.");
       return;
     }
-    trackEvent("다시 생성");
+    if (generated.mode === "manual") {
+      if (!window.confirm("배정한 선수 정보가 모두 지워집니다. 격자를 초기화할까요?")) {
+        return;
+      }
+      trackEvent("격자 초기화");
+    } else {
+      trackEvent("다시 생성");
+    }
     runGenerate(input, Date.now(), "regenerate");
   };
 
@@ -325,6 +407,19 @@ export function TournamentGenerator() {
     } catch {
       alert("선수 등록 정보 저장에 실패했습니다.");
       return;
+    }
+
+    if (generated.mode === "manual") {
+      try {
+        await saveEventSchedule(eventId, {
+          mode: "manual",
+          manualLayout: input.manualLayout,
+          schedule: generated.schedule,
+        });
+      } catch {
+        alert("대진표 저장에 실패했습니다.");
+        return;
+      }
     }
 
     const url = buildScheduleShareUrl(input, seed, eventId);
@@ -351,10 +446,96 @@ export function TournamentGenerator() {
       const roster = rosterFromInput(nextInput);
       await saveEventRoster(eventId, roster);
       rosterSnapshotRef.current = JSON.stringify(roster);
-      runGenerate(nextInput, seed, undefined, eventId);
+      if (nextInput.mode === "manual" && generated) {
+        setInput(nextInput);
+        setGenerated(rebuildManualGenerated(generated, generated.schedule, nextInput));
+      } else {
+        runGenerate(nextInput, seed, undefined, eventId);
+      }
       trackEvent("선수등록 저장");
     } finally {
       setRosterSaving(false);
+    }
+  };
+
+  const handleEditManual = (target: ManualMatchTarget) => {
+    trackEvent("수동배정", { time: target.time, court: target.court });
+    setManualEditor(target);
+  };
+
+  const handleManualSave = async (payload: {
+    type: MatchType;
+    teamA: [string, string];
+    teamB: [string, string];
+  }) => {
+    if (!generated || !manualEditor) return;
+
+    const error = validateManualMatchAssignment(
+      generated.schedule,
+      manualEditor.time,
+      manualEditor.court,
+      payload.type,
+      payload.teamA,
+      payload.teamB,
+      generated.males
+    );
+    if (error) {
+      alert(error);
+      return;
+    }
+
+    setManualSaving(true);
+    try {
+      const schedule = generated.schedule.map((match) =>
+        match.time === manualEditor.time && match.court === manualEditor.court
+          ? {
+              time: match.time,
+              court: match.court,
+              type: payload.type,
+              teamA: payload.teamA,
+              teamB: payload.teamB,
+            }
+          : match
+      );
+      const next = rebuildManualGenerated(generated, schedule, input);
+      setGenerated(next);
+      setManualEditor(null);
+      if (eventId) {
+        await saveEventSchedule(eventId, {
+          mode: "manual",
+          manualLayout: input.manualLayout,
+          schedule,
+        });
+      }
+      trackEvent("수동배정 저장");
+    } finally {
+      setManualSaving(false);
+    }
+  };
+
+  const handleManualClear = async () => {
+    if (!generated || !manualEditor) return;
+
+    setManualSaving(true);
+    try {
+      const schedule = generated.schedule.map((match) =>
+        match.time === manualEditor.time && match.court === manualEditor.court
+          ? { time: match.time, court: match.court, pending: true }
+          : match
+      );
+      const next = rebuildManualGenerated(generated, schedule, input);
+      setGenerated(next);
+      setManualEditor(null);
+      await clearScore(manualEditor.time, manualEditor.court);
+      if (eventId) {
+        await saveEventSchedule(eventId, {
+          mode: "manual",
+          manualLayout: input.manualLayout,
+          schedule,
+        });
+      }
+    } finally {
+      setManualSaving(false);
     }
   };
 
@@ -430,7 +611,9 @@ export function TournamentGenerator() {
       const needFemale = typesNeedFemale(types);
       const adding = !exists;
 
-      if (prev.mode === "free") {
+      const isFreeStyle = prev.mode === "free" || (prev.mode === "manual" && prev.manualLayout === "free");
+
+      if (isFreeStyle) {
         let maleCount = needMale ? prev.maleCount : 0;
         let femaleCount = needFemale ? prev.femaleCount : 0;
         let maleNames = needMale ? prev.maleNames : [];
@@ -520,11 +703,26 @@ export function TournamentGenerator() {
 
   const handleModeChange = (mode: ScheduleMode) => {
     setInput((prev) => {
-      if (mode !== "team") {
-        return { ...prev, mode };
+      if (mode === "team") {
+        const teamDefaults = applyTeamRosterDefaultsForTypes(prev.teamA, prev.teamB, prev.types);
+        return { ...prev, mode, ...teamDefaults };
       }
-      const teamDefaults = applyTeamRosterDefaultsForTypes(prev.teamA, prev.teamB, prev.types);
-      return { ...prev, mode, ...teamDefaults };
+      if (mode === "manual") {
+        return { ...prev, mode, manualLayout: prev.manualLayout ?? "free" };
+      }
+      return { ...prev, mode };
+    });
+    setHighlightedPlayer(null);
+    setGenerated(null);
+  };
+
+  const handleManualLayoutChange = (layout: ManualLayout) => {
+    setInput((prev) => {
+      if (layout === "team") {
+        const teamDefaults = applyTeamRosterDefaultsForTypes(prev.teamA, prev.teamB, prev.types);
+        return { ...prev, manualLayout: layout, ...teamDefaults };
+      }
+      return { ...prev, manualLayout: layout };
     });
     setHighlightedPlayer(null);
     setGenerated(null);
@@ -555,7 +753,7 @@ export function TournamentGenerator() {
 
   const playerScoreRankingGroups = useMemo(() => {
     if (!generated || !hasRecordedScores(matchScores)) return [];
-    if (generated.mode === "team" && generated.teamInfo) {
+    if (isTeamStyleSchedule(generated) && generated.teamInfo) {
       return computeTeamScoreRankingGroups(
         generated.schedule,
         matchScores,
@@ -587,7 +785,7 @@ export function TournamentGenerator() {
 
   const doubleFaultGroups = useMemo(() => {
     if (!generated || !hasRecordedDoubleFaults(matchScores)) return [];
-    if (generated.mode === "team" && generated.teamInfo) {
+    if (isTeamStyleSchedule(generated) && generated.teamInfo) {
       return computeTeamDoubleFaultGroups(
         generated.schedule,
         matchScores,
@@ -601,7 +799,15 @@ export function TournamentGenerator() {
   const showDoubleFaultStats =
     doubleFaultGroups.length > 0 && hasDoubleFaultEntries(doubleFaultGroups);
 
-  const isScheduleViewMode = searchParams.has("seed");
+  const isScheduleViewMode =
+    searchParams.has("seed") ||
+    (searchParams.get("mode") === "manual" && searchParams.has("eid"));
+
+  const isManualMode = generated?.mode === "manual";
+  const showFreeRoster =
+    input.mode === "free" || (input.mode === "manual" && input.manualLayout === "free");
+  const showTeamRoster =
+    input.mode === "team" || (input.mode === "manual" && input.manualLayout === "team");
 
   const highlightActive = !!highlightedPlayer && !isExporting;
 
@@ -611,7 +817,7 @@ export function TournamentGenerator() {
 
   const matchCount = generated?.schedule.filter((m) => !m.empty).length ?? 0;
   const teamSummary =
-    generated?.mode === "team" && generated.teamInfo
+    generated && isTeamStyleSchedule(generated) && generated.teamInfo
       ? formatTeamSummary(
           generated.teamInfo.teamAName,
           generated.teamInfo.teamBName,
@@ -641,17 +847,33 @@ export function TournamentGenerator() {
 
       {!isScheduleViewMode && (
       <section className="no-print mb-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5">
-        <div className="mode-segmented mb-3">
-          {MODE_OPTIONS.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => handleModeChange(value)}
-              className={`mode-segment ${input.mode === value ? "mode-segment--active" : ""}`}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="mode-segment-row mb-3">
+          <div className="mode-segmented">
+            {MODE_OPTIONS.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => handleModeChange(value)}
+                className={`mode-segment ${input.mode === value ? "mode-segment--active" : ""}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {input.mode === "manual" && (
+            <div className="mode-segmented mode-segmented--compact">
+              {MANUAL_LAYOUT_OPTIONS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => handleManualLayoutChange(value)}
+                  className={`mode-segment mode-segment--compact ${input.manualLayout === value ? "mode-segment--active" : ""}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="mb-3">
           <p className="mb-2 text-xs font-semibold text-[var(--muted)]">경기 유형</p>
@@ -740,7 +962,7 @@ export function TournamentGenerator() {
           {maxCourtsHint && (
             <p className="court-capacity-hint col-span-full">{maxCourtsHint}</p>
           )}
-          {input.mode === "free" ? (
+          {showFreeRoster ? (
             (needsMale || needsFemale) && (
               <div className="col-span-full flex flex-col gap-2">
                 <div className="grid grid-cols-2 gap-2 md:grid-cols-4 [&>*]:min-w-0">
@@ -785,9 +1007,14 @@ export function TournamentGenerator() {
                     className="rounded-lg border border-[var(--line)] bg-[#f8fafc] px-2 py-2"
                   />
                 )}
+                {input.mode === "manual" && (
+                  <p className="text-sm text-[var(--muted)]">
+                    수동 모드에서는 빈 슬롯만 생성됩니다. 각 코트·시간을 탭해 직접 선수를 배정하세요.
+                  </p>
+                )}
               </div>
             )
-          ) : (
+          ) : showTeamRoster ? (
             <div className="col-span-full space-y-3">
               <TeamRosterForm
                 roster={input.teamA}
@@ -803,26 +1030,32 @@ export function TournamentGenerator() {
                 highlighted={!!maxCourtsHint}
                 onChange={(teamB) => setInput((prev) => ({ ...prev, teamB }))}
               />
-              <p className="text-sm text-[var(--muted)]">
-                팀 인원이 다르면 인원이 적은 팀 선수에게 경기가 더 많이 배정될 수 있습니다. 가능한 범위에서
-                개인별 경기 수를 균등하게 맞춥니다.
-              </p>
+              {input.mode === "team" ? (
+                <p className="text-sm text-[var(--muted)]">
+                  팀 인원이 다르면 인원이 적은 팀 선수에게 경기가 더 많이 배정될 수 있습니다. 가능한 범위에서
+                  개인별 경기 수를 균등하게 맞춥니다.
+                </p>
+              ) : (
+                <p className="text-sm text-[var(--muted)]">
+                  수동 모드에서는 빈 슬롯만 생성됩니다. 각 코트·시간을 탭해 직접 선수를 배정하세요.
+                </p>
+              )}
             </div>
-          )}
+          ) : null}
 
           <div ref={actionBtnRef} className="action-btn-row col-span-full">
             <button
               type="submit"
               className={`btn btn-primary ${generateFlash === "create" ? "generation-btn-flash" : ""}`}
             >
-              대진 생성
+              {input.mode === "manual" ? "격자 생성" : "대진 생성"}
             </button>
             <button
               type="button"
               onClick={handleRegenerate}
               className={`btn btn-secondary ${generateFlash === "regenerate" ? "generation-btn-flash" : ""}`}
             >
-              다시 생성
+              {input.mode === "manual" ? "격자 초기화" : "다시 생성"}
             </button>
             <ScheduleExportActions
               onShare={handleShare}
@@ -844,6 +1077,16 @@ export function TournamentGenerator() {
           message={generationToast.message}
           onClose={() => setGenerationToast(null)}
         />
+      )}
+
+      {isScheduleViewMode && initialized && !generated && sharedLoadError && (
+        <section className="no-print mb-3 rounded-xl border border-[#f5c6c6] bg-[#fff5f5] p-4">
+          <p className="m-0 text-sm font-semibold text-[#c0392b]">공유 대진표를 불러오지 못했습니다.</p>
+          <p className="m-0 mt-1 text-sm text-[var(--muted)]">{sharedLoadError}</p>
+          <Link href="/" className="btn btn-primary mt-3 inline-flex">
+            나도 생성하기
+          </Link>
+        </section>
       )}
 
       {isScheduleViewMode && generated && (
@@ -972,7 +1215,7 @@ export function TournamentGenerator() {
                           const match = list.find((x) => x.court === court);
                           return (
                             <td key={court} className="schedule-desktop-cell p-2 align-middle">
-                              <ScorableMatchCell
+                              <ScheduleSlotCell
                                 className="p-1"
                                 time={time}
                                 court={court}
@@ -980,7 +1223,9 @@ export function TournamentGenerator() {
                                 teamInfo={generated.teamInfo}
                                 highlightedPlayer={highlightActive ? highlightedPlayer : null}
                                 score={getScoreForSlot(matchScores, time, court)}
+                                manualMode={isManualMode}
                                 onEditScore={handleEditScore}
+                                onEditManual={handleEditManual}
                               />
                             </td>
                           );
@@ -1000,7 +1245,9 @@ export function TournamentGenerator() {
                 highlightedPlayer={highlightedPlayer}
                 highlightActive={highlightActive}
                 matchScores={matchScores}
+                manualMode={isManualMode}
                 onEditScore={handleEditScore}
+                onEditManual={handleEditManual}
               />
             </div>
           </section>
@@ -1014,7 +1261,7 @@ export function TournamentGenerator() {
               <PlayerScoreRanking
                 groups={playerScoreRankingGroups}
                 males={generated.males}
-                teamMode={generated.mode === "team"}
+                teamMode={isTeamStyleSchedule(generated)}
                 highlightedPlayer={highlightedPlayer}
                 onHighlightPlayer={handleHighlightPlayer}
               />
@@ -1027,7 +1274,7 @@ export function TournamentGenerator() {
               <PlayerDoubleFaultStats
                 groups={doubleFaultGroups}
                 males={generated.males}
-                teamMode={generated.mode === "team"}
+                teamMode={isTeamStyleSchedule(generated)}
                 highlightedPlayer={highlightedPlayer}
                 onHighlightPlayer={handleHighlightPlayer}
               />
@@ -1071,7 +1318,11 @@ export function TournamentGenerator() {
           <div className="print-content">
             <header className="print-header">
               <h1 className="print-title">
-                {generated.mode === "team" ? "테니스 팀전 대진표" : "테니스 대진표"}
+                {isTeamStyleSchedule(generated)
+                  ? "테니스 팀전 대진표"
+                  : generated.mode === "manual"
+                    ? "테니스 대진표 (수동)"
+                    : "테니스 대진표"}
               </h1>
               <p className="print-meta">
                 {input.startTime} ~ {input.endTime} · 코트 {input.courtCount} · 경기 {input.matchMinutes}분
@@ -1084,7 +1335,7 @@ export function TournamentGenerator() {
                 </p>
               )}
               <p className="print-participants">
-                {generated.mode === "team" && generated.teamInfo ? (
+                {isTeamStyleSchedule(generated) && generated.teamInfo ? (
                   <>
                     <span>
                       <strong>{generated.teamInfo.teamAName}</strong>{" "}
@@ -1173,6 +1424,19 @@ export function TournamentGenerator() {
           </div>
         </div>
       )}
+
+      <ManualMatchSheet
+        target={manualEditor}
+        types={input.types}
+        males={generated?.males ?? []}
+        females={generated?.females ?? []}
+        teamInfo={generated?.teamInfo}
+        schedule={generated?.schedule ?? []}
+        saving={manualSaving}
+        onClose={() => setManualEditor(null)}
+        onSave={handleManualSave}
+        onClear={handleManualClear}
+      />
 
       <MatchScoreSheet
         target={scoreEditor}

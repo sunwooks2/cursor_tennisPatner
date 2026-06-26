@@ -10,6 +10,7 @@ export type GoogleScriptResult = {
   error?: string;
   scores?: MatchScores;
   roster?: EventRoster | string | null;
+  schedule?: unknown;
 };
 
 export async function postToGoogleScript(

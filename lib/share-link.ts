@@ -23,14 +23,27 @@ export function buildScheduleSearchParams(
     e: input.endTime,
     d: String(input.matchMinutes),
     t: input.types.join(","),
-    seed: String(seed),
   });
+
+  if (input.mode !== "manual") {
+    q.set("seed", String(seed));
+  }
 
   if (eventId) {
     q.set("eid", eventId);
   }
 
-  if (input.mode === "team") {
+  if (input.mode === "manual") {
+    q.set("mode", "manual");
+    q.set("ml", input.manualLayout);
+    if (input.manualLayout === "team") {
+      appendTeamRosterParams(q, "ta", input.teamA);
+      appendTeamRosterParams(q, "tb", input.teamB);
+    } else {
+      q.set("m", String(input.maleCount));
+      q.set("f", String(input.femaleCount));
+    }
+  } else if (input.mode === "team") {
     q.set("mode", "team");
     appendTeamRosterParams(q, "ta", input.teamA);
     appendTeamRosterParams(q, "tb", input.teamB);

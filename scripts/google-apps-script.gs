@@ -2,6 +2,7 @@ const FEEDBACK_SHEET = "시트1";
 const EVENT_SHEET = "이벤트로그";
 const SCORES_SHEET = "점수입력";
 const ROSTER_SHEET = "선수등록";
+const SCHEDULE_SHEET = "대진표";
 
 // .env 의 FEEDBACK_SECRET 과 동일하게 설정
 const SECRET = "your-secret-here";
@@ -47,6 +48,18 @@ function doPost(e) {
       const secretError = assertSecret_(data);
       if (secretError) return secretError;
       return handleRosterGet(data);
+    }
+
+    if (data.kind === "schedule_save") {
+      const secretError = assertSecret_(data);
+      if (secretError) return secretError;
+      return handleScheduleSave(data);
+    }
+
+    if (data.kind === "schedule_get") {
+      const secretError = assertSecret_(data);
+      if (secretError) return secretError;
+      return handleScheduleGet(data);
     }
 
     return handleFeedback(data);
@@ -299,6 +312,70 @@ function handleRosterGet(data) {
   }
 
   return jsonResponse({ ok: true, roster: null });
+}
+
+function handleScheduleSave(data) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SCHEDULE_SHEET);
+  if (!sheet) {
+    return jsonResponse({ ok: false, error: "Schedule sheet not found" });
+  }
+
+  const eid = String(data.eid || "").trim();
+  const payload =
+    typeof data.schedule === "string" ? data.schedule : JSON.stringify(data.schedule || {});
+
+  if (!eid || !payload) {
+    return jsonResponse({ ok: false, error: "invalid" });
+  }
+
+  const rows = sheet.getDataRange().getValues();
+  const now = new Date().toISOString();
+  let updated = false;
+
+  for (let i = 1; i < rows.length; i++) {
+    if (isSameEid_(rows[i][0], eid)) {
+      sheet.getRange(i + 1, 2, 1, 2).setValues([[payload, now]]);
+      updated = true;
+      break;
+    }
+  }
+
+  if (!updated) {
+    sheet.appendRow([eid, payload, now]);
+  }
+
+  return jsonResponse({ ok: true });
+}
+
+function handleScheduleGet(data) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SCHEDULE_SHEET);
+  if (!sheet) {
+    return jsonResponse({ ok: false, error: "Schedule sheet not found" });
+  }
+
+  const eid = String(data.eid || "").trim();
+  if (!eid) {
+    return jsonResponse({ ok: false, error: "no eid" });
+  }
+
+  const rows = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < rows.length; i++) {
+    if (!isSameEid_(rows[i][0], eid)) continue;
+
+    const payload = String(rows[i][1] || "").trim();
+    if (!payload) {
+      return jsonResponse({ ok: true, schedule: null });
+    }
+
+    try {
+      return jsonResponse({ ok: true, schedule: JSON.parse(payload) });
+    } catch (err) {
+      return jsonResponse({ ok: false, error: "invalid_schedule" });
+    }
+  }
+
+  return jsonResponse({ ok: true, schedule: null });
 }
 
 function formatNow() {

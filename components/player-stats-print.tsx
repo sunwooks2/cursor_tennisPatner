@@ -61,12 +61,13 @@ export function PlayerStatsPrint({ stats, mode = "free", teamInfo }: PlayerStats
     { key: "MXD", label: "혼복" },
   ];
 
-  const isTeamMode = mode === "team" && teamInfo;
+  const isTeamMode = Boolean(teamInfo);
+  const team = teamInfo!;
   const teamAPlayers = isTeamMode
-    ? [...teamInfo.teamAMales, ...teamInfo.teamAFemales]
+    ? [...team.teamAMales, ...team.teamAFemales]
     : [];
   const teamBPlayers = isTeamMode
-    ? [...teamInfo.teamBMales, ...teamInfo.teamBFemales]
+    ? [...team.teamBMales, ...team.teamBFemales]
     : [];
   const teamAStats = isTeamMode ? stats.filter((s) => teamAPlayers.includes(s.player)) : stats;
   const teamBStats = isTeamMode ? stats.filter((s) => teamBPlayers.includes(s.player)) : stats;
@@ -104,25 +105,25 @@ export function PlayerStatsPrint({ stats, mode = "free", teamInfo }: PlayerStats
         {isTeamMode ? (
           <>
             <StatMatrix
-              title={`페어 횟수 (${teamInfo.teamAName})`}
+              title={`페어 횟수 (${team.teamAName})`}
               stats={teamAStats}
               allPlayers={teamAPlayers}
               getCount={(stat, name) => stat.partners[name] ?? 0}
             />
             <StatMatrix
-              title={`페어 횟수 (${teamInfo.teamBName})`}
+              title={`페어 횟수 (${team.teamBName})`}
               stats={teamBStats}
               allPlayers={teamBPlayers}
               getCount={(stat, name) => stat.partners[name] ?? 0}
             />
             <StatMatrix
-              title={`상대 횟수 (${teamInfo.teamAName})`}
+              title={`상대 횟수 (${team.teamAName})`}
               stats={teamAStats}
               allPlayers={teamBPlayers}
               getCount={(stat, name) => stat.opponents[name] ?? 0}
             />
             <StatMatrix
-              title={`상대 횟수 (${teamInfo.teamBName})`}
+              title={`상대 횟수 (${team.teamBName})`}
               stats={teamBStats}
               allPlayers={teamAPlayers}
               getCount={(stat, name) => stat.opponents[name] ?? 0}

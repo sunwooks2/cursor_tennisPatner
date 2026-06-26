@@ -25,6 +25,7 @@ import {
   type TypeCountRecord,
 } from "./schedule-common";
 import { typesNeedFemale, typesNeedMale } from "./match-type-gender";
+import { generateManualSchedule, validateManualInput } from "./schedule-manual";
 import { generateTeamSchedule, validateTeamInput } from "./schedule-team";
 import { formatTeamMatchText } from "./team-stats";
 import type {
@@ -290,11 +291,13 @@ export function generateFreeSchedule(input: ScheduleInput, seed: number): Genera
 }
 
 export function generateSchedule(input: ScheduleInput, seed: number): GeneratedSchedule {
+  if (input.mode === "manual") return generateManualSchedule(input);
   if (input.mode === "team") return generateTeamSchedule(input, seed);
   return generateFreeSchedule(input, seed);
 }
 
 export function validateInput(input: ScheduleInput): string | null {
+  if (input.mode === "manual") return validateManualInput(input);
   if (input.mode === "team") return validateTeamInput(input);
 
   const { maleCount, femaleCount, courtCount, startTime, endTime, matchMinutes, types } = input;
@@ -322,7 +325,8 @@ export function isCurrentSlot(timeLabel: string, matchMinutes: number): boolean 
 
 export function matchToText(match: ScheduleMatch): string {
   if (match.empty) return "배정 실패";
-  return `${match.teamA![0]} / ${match.teamA![1]} VS ${match.teamB![0]} / ${match.teamB![1]} (${parseTypeLabel(match.type!)})`;
+  if (match.pending) return "선수 배정";
+  return `${match.teamA![0]} ${match.teamA![1]} VS ${match.teamB![0]} ${match.teamB![1]} (${parseTypeLabel(match.type!)})`;
 }
 
 export function formatMatchText(match: ScheduleMatch, teamInfo?: TeamScheduleInfo): string {

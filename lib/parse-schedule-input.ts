@@ -22,6 +22,7 @@ export const DEFAULT_TEAM_DOUBLES_PER_SIDE = 2;
 
 export const DEFAULT_INPUT: ScheduleInput = {
   mode: "free",
+  manualLayout: "free",
   maleCount: 0,
   femaleCount: DEFAULT_FREE_DOUBLES_COUNT,
   maleNames: [],
@@ -105,8 +106,10 @@ export function parseInputFromSearchParams(params: URLSearchParams): {
   seed: number;
 } {
   const input: ScheduleInput = { ...DEFAULT_INPUT, teamA: { ...DEFAULT_TEAM_A }, teamB: { ...DEFAULT_TEAM_B } };
-  const mode = (params.get("mode") ?? "free") as ScheduleMode;
-  input.mode = mode === "team" ? "team" : "free";
+  const modeParam = params.get("mode") ?? "free";
+  input.mode = modeParam === "team" ? "team" : modeParam === "manual" ? "manual" : "free";
+  const layoutParam = params.get("ml");
+  input.manualLayout = layoutParam === "team" ? "team" : "free";
 
   const c = params.get("c");
   const s = params.get("s");
@@ -124,6 +127,10 @@ export function parseInputFromSearchParams(params: URLSearchParams): {
   if (input.mode === "team") {
     input.teamA = parseTeamRoster("ta", params, "");
     input.teamB = parseTeamRoster("tb", params, "");
+    const teamDefaults = applyTeamRosterDefaultsForTypes(input.teamA, input.teamB, input.types);
+    input.teamA = teamDefaults.teamA;
+    input.teamB = teamDefaults.teamB;
+  } else if (input.mode === "manual" && input.manualLayout === "team") {
     const teamDefaults = applyTeamRosterDefaultsForTypes(input.teamA, input.teamB, input.types);
     input.teamA = teamDefaults.teamA;
     input.teamB = teamDefaults.teamB;
