@@ -7,6 +7,7 @@ interface CollapsibleSectionProps {
   children: ReactNode;
   defaultOpen?: boolean;
   className?: string;
+  onOpenChange?: (open: boolean) => void;
 }
 
 function CollapseToggleIcon({ open }: { open: boolean }) {
@@ -30,15 +31,24 @@ export function CollapsibleSection({
   children,
   defaultOpen = false,
   className = "",
+  onOpenChange,
 }: CollapsibleSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
+
+  const handleToggle = () => {
+    setOpen((prev) => {
+      const next = !prev;
+      onOpenChange?.(next);
+      return next;
+    });
+  };
 
   return (
     <section className={`collapsible-section ${className}`.trim()}>
       <button
         type="button"
         className="collapsible-section__trigger"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={handleToggle}
         aria-expanded={open}
       >
         <span className="collapsible-section__title">{title}</span>

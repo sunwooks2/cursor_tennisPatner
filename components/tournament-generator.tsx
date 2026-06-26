@@ -535,6 +535,19 @@ export function TournamentGenerator() {
     if (player) trackEvent("내경기 하이라이트", { player });
   };
 
+  const trackMatchCountSectionToggle = (open: boolean) => {
+    trackEvent(open ? "참가자별 경기횟수 펼침" : "참가자별 경기횟수 접기");
+  };
+
+  const trackPairStatsSectionToggle = (open: boolean) => {
+    trackEvent(open ? "페어상대 통계 펼침" : "페어상대 통계 접기");
+  };
+
+  const handleEditScore = (target: ScoreEditorTarget) => {
+    trackEvent("점수입력", { time: target.time, court: target.court });
+    setScoreEditor(target);
+  };
+
   const highlightPlayers = useMemo(
     () => generated?.playerStats.map((s) => s.player) ?? [],
     [generated?.playerStats]
@@ -864,6 +877,7 @@ export function TournamentGenerator() {
             <CollapsibleSection
               title="참가자별 경기 횟수"
               className="mb-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5"
+              onOpenChange={trackMatchCountSectionToggle}
             >
               <PlayerMatchCountSummary
                 stats={generated.playerStats}
@@ -881,7 +895,10 @@ export function TournamentGenerator() {
                 <button
                   type="button"
                   className="btn btn-primary btn-compact shrink-0"
-                  onClick={() => setRegistrationOpen(true)}
+                  onClick={() => {
+                    trackEvent("선수등록");
+                    setRegistrationOpen(true);
+                  }}
                 >
                   선수등록
                 </button>
@@ -963,7 +980,7 @@ export function TournamentGenerator() {
                                 teamInfo={generated.teamInfo}
                                 highlightedPlayer={highlightActive ? highlightedPlayer : null}
                                 score={getScoreForSlot(matchScores, time, court)}
-                                onEditScore={setScoreEditor}
+                                onEditScore={handleEditScore}
                               />
                             </td>
                           );
@@ -983,7 +1000,7 @@ export function TournamentGenerator() {
                 highlightedPlayer={highlightedPlayer}
                 highlightActive={highlightActive}
                 matchScores={matchScores}
-                onEditScore={setScoreEditor}
+                onEditScore={handleEditScore}
               />
             </div>
           </section>
@@ -1021,6 +1038,7 @@ export function TournamentGenerator() {
             <CollapsibleSection
               title="참가자별 경기 횟수"
               className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5"
+              onOpenChange={trackMatchCountSectionToggle}
             >
               <PlayerMatchCountSummary
                 stats={generated.playerStats}
@@ -1034,6 +1052,7 @@ export function TournamentGenerator() {
           <CollapsibleSection
             title="참가자별 페어/상대 통계"
             className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--panel)] p-3.5"
+            onOpenChange={trackPairStatsSectionToggle}
           >
             <PlayerStatsBars
               stats={generated.playerStats}
